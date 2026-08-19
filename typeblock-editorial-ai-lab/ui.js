@@ -8,20 +8,36 @@ function uiEscape(value){
 }
 function renderAll(){renderLayout();renderLadder();renderCost();renderEditorial();renderRolling();renderWeights()}
 function clearLayoutSurface(L){
-  L.querySelectorAll('.block,.worstband,.layout-message').forEach(n=>n.remove());
+  L.querySelectorAll('.block,.worstband,.layout-message,.viewport-cut').forEach(n=>n.remove());
   $('cands').innerHTML='';
   $('stats').textContent=''
 }
+function profileLabel(){return window.TypeBlockLayoutProfile?.active?.().label||'Desktop'}
+function renderViewportCuts(L,totalRows){
+  if(!isMobileLayout())return;
+  let V=viewportRows(),totalPx=totalRows*U,index=2;
+  for(let top=V*U;top<totalPx;top+=V*U){
+    let line=document.createElement('div');
+    line.className='viewport-cut';
+    line.style.top=top+'px';
+    line.innerHTML=`<span>VIEWPORT ${index}</span>`;
+    L.appendChild(line);
+    index++
+  }
+}
 function renderLayout(){
+  window.TypeBlockLayoutProfile?.applyDom?.();
   let L=$('layout');
   clearLayoutSurface(L);
   L.classList.toggle('showgrid',$('grid').checked);
   L.classList.toggle('bounds',$('bounds').checked);
   $('app').classList.toggle('clean',$('clean').checked);
+  let gutter=layoutGutter();
+  $('gridlines').style.gap=gutter+'px';
 
   if(!candidates.length){
-    L.style.height='480px';
-    $('stageMeta').textContent=`${entries.length} Entries · ${mode.toUpperCase()} · no candidate`;
+    L.style.height=(isMobileLayout()?844:480)+'px';
+    $('stageMeta').textContent=`${entries.length} Entries · ${profileLabel()} · ${mode.toUpperCase()} · no candidate`;
     let d=document.createElement('div');
     d.className='layout-message';
     d.textContent=entries.length
@@ -29,8 +45,8 @@ function renderLayout(){
       :'No active dataset.';
     L.appendChild(d);
     $('stats').textContent=entries.length
-      ?'layout: no candidate\nstale canvas: cleared'
-      :'layout: empty';
+      ?`profile: ${profileLabel()}\nlayout: no candidate\nstale canvas: cleared`
+      :`profile: ${profileLabel()}\nlayout: empty`;
     return
   }
 
@@ -49,18 +65,19 @@ function renderLayout(){
     return
   }
 
-  let D=dominant(c.ps);
-  L.style.height=(Math.max(...c.ps.map(p=>p.row+p.rows))+5)*U+'px';
+  let D=dominant(c.ps),totalRows=Math.max(...c.ps.map(p=>p.row+p.rows))+5,
+      layoutWidth=Math.max(1,L.clientWidth),columnWidth=(layoutWidth-gutter*(C-1))/C;
+  L.style.height=Math.max(totalRows*U,isMobileLayout()?844:820)+'px';
   c.ps.forEach((p,i)=>{
     let e=entries[i];
     if(!e)return;
-    let d=document.createElement('article'),is=D.has(e.id);
-    d.className='block'+(is?' dom':'')+(focus===e.id?' focus':'');
-    d.style.left=`calc(${p.x/6*100}% + ${p.x?G/2:0}px)`;
-    d.style.width=`calc(${p.span/6*100}% - ${p.x?G/2:0}px)`;
+    let d=document.createElement('article'),is=D.has(e.id),left=p.x*(columnWidth+gutter),width=p.span*columnWidth+(p.span-1)*gutter;
+    d.className='block'+(is?' dom':'')+(focus===e.id?' focus':'')+(isMobileLayout()?' mobile-block':'');
+    d.style.left=left+'px';
+    d.style.width=width+'px';
     d.style.top=p.row*U+'px';
     d.style.height=p.rows*U+'px';
-    let lp=is?24:20;
+    let lp=is?(isMobileLayout()?24:24):(isMobileLayout()?22:20);
     let lines=Math.max(2,Math.floor((p.rows*U-($('clean').checked?8:26)-(e.cue?34:0))/lp));
     let m=e.editorial?.status==='ready'?e.editorial:null,
         phraseLabel=Number.isInteger(p.phraseId)?` · P${p.phraseId+1} · ${uiEscape(p.template||'phrase')}`:'';
@@ -73,6 +90,7 @@ function renderLayout(){
     d.onclick=()=>{focus=e.id;renderLayout();renderEditorial()};
     L.appendChild(d)
   });
+  renderViewportCuts(L,totalRows);
   if($('worst').checked&&c.diag?.worst){
     let q=c.diag.worst,d=document.createElement('div');
     d.className='worstband';
@@ -82,7 +100,7 @@ function renderLayout(){
     L.appendChild(d)
   }
   let phraseCount=c.phraseCount||c.phrases?.length||new Set(c.ps.map(p=>p.phraseId)).size;
-  $('stageMeta').textContent=`${entries.length} Entries · ${phraseCount} phrases · ${mode.toUpperCase()} · candidate ${selected+1}`;
+  $('stageMeta').textContent=`${entries.length} Entries · ${phraseCount} phrases · ${profileLabel()} · ${mode.toUpperCase()} · candidate ${selected+1}`;
   candidates.forEach((x,i)=>{
     let b=document.createElement('button'),count=x.phraseCount||x.phrases?.length||new Set(x.ps.map(p=>p.phraseId)).size;
     b.className='cand'+(i===selected?' on':'');
@@ -92,6 +110,7 @@ function renderLayout(){
   });
   let phraseSummary=(c.phrases||[]).map(phrase=>`${phrase.start+1}–${phrase.end} ${phrase.template}`).join(' | ');
   $('stats').textContent=
+    `profile: ${profileLabel()} · gutter ${gutter}px · viewport ${viewportRows()} rows\n`+
     Object.entries(c.m).map(([k,v])=>`${k}: ${v.toFixed(1)} × ${W[k]}`).join('\n')+
     `\nscore: ${c.s.toFixed(2)}`+
     `\nphrases: ${phraseSummary||'—'}`
@@ -135,6 +154,9 @@ function renderEditorial(){
     `<div class="editorial-grid">`+
     `<span>Entry</span><b>${String(e.id).padStart(2,'0')}</b>`+
     `<span>Source ID</span><b>${uiEscape(e.externalId||'—')}</b>`+
+    `<span>Profile</span><b>${uiEscape(profileLabel())}</b>`+
+    `<span>Territory</span><b>${layoutTargetFor(e).toFixed(1)} cells</b>`+
+    `<span>Minimum span</span><b>${layoutMinSpan(e)} / 6</b>`+
     `<span>Phrase</span><b>${Number.isInteger(placement?.phraseId)?'P'+(placement.phraseId+1):'—'}</b>`+
     `<span>Template</span><b>${uiEscape(placement?.template||'—')}</b>`+
     `<span>Frame</span><b>${placement?`${placement.x}:${placement.row} · ${placement.span}×${placement.rows}`:'—'}</b>`+
@@ -150,11 +172,13 @@ function renderEditorial(){
 }
 function renderRolling(){
   if(!candidates.length){
-    $('rolling').innerHTML='<span>Status</span><b>No layout candidate</b>';
+    $('rolling').innerHTML=`<span>Profile</span><b>${uiEscape(profileLabel())}</b><span>Status</span><b>No layout candidate</b>`;
     return
   }
   let d=candidates[selected].diag,q=d.worst;
   $('rolling').innerHTML=
+    `<span>Profile</span><b>${uiEscape(profileLabel())}</b>`+
+    `<span>Viewport</span><b>${layoutViewportHeight()} px / ${viewportRows()} rows</b>`+
     `<span>Viewports</span><b>${d.wins.length}</b>`+
     `<span>P90</span><b>${d.p90.toFixed(1)}</b>`+
     `<span>Mean</span><b>${d.mean.toFixed(1)}</b>`+
@@ -196,7 +220,19 @@ function setMode(v){
   if(v==='live')setStatus('<strong>LIVE</strong> — calls the same-origin backend only. No key is stored in this page.');
   generate()
 }
+function setLayoutProfile(id){
+  if(!window.TypeBlockLayoutProfile?.profiles?.[id])return;
+  window.TypeBlockLayoutProfile.set(id);
+  previous=new Map();
+  candidates=[];
+  selected=0;
+  requestAnimationFrame(()=>{
+    void $('layout').offsetWidth;
+    generate()
+  })
+}
 document.querySelectorAll('.mode button').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+document.querySelectorAll('[data-layout-profile]').forEach(b=>b.onclick=()=>setLayoutProfile(b.dataset.layoutProfile));
 $('analyze').onclick=analyze;
 $('clearAnalysis').onclick=()=>{entries.forEach(e=>{e.editorial=null;e.usage=null});lastUsage=null;generate()};
 $('apply').onclick=()=>applyText(true);
@@ -207,5 +243,6 @@ $('bounds').onchange=renderLayout;
 $('worst').onchange=renderLayout;
 $('semantic').onchange=generate;
 let resizeTimer;
-addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(generate,180)});
+addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{window.TypeBlockLayoutProfile?.applyDom?.();generate()},180)});
+window.TypeBlockLayoutProfile?.applyDom?.();
 if(!window.TYPEBLOCK_DEFERRED_BOOT){applyText(false);setMode('mock')}
