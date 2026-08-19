@@ -62,9 +62,10 @@ function renderLayout(){
     d.style.height=p.rows*U+'px';
     let lp=is?24:20;
     let lines=Math.max(2,Math.floor((p.rows*U-($('clean').checked?8:26)-(e.cue?34:0))/lp));
-    let m=e.editorial?.status==='ready'?e.editorial:null;
+    let m=e.editorial?.status==='ready'?e.editorial:null,
+        phraseLabel=Number.isInteger(p.phraseId)?` · P${p.phraseId+1} · ${uiEscape(p.template||'phrase')}`:'';
     d.innerHTML=
-      `<div class="meta">${e.chars.toLocaleString()} chars · ${p.span}×${p.rows} · intrinsic ${p.shape.intrinsic.toFixed(1)} · editorial ${p.shape.editorial.toFixed(1)}${m?` · ${uiEscape(m.function)}`:''}</div>`+
+      `<div class="meta">${e.chars.toLocaleString()} chars · ${p.span}×${p.rows} · intrinsic ${p.shape.intrinsic.toFixed(1)} · editorial ${p.shape.editorial.toFixed(1)}${m?` · ${uiEscape(m.function)}`:''}${phraseLabel}</div>`+
       `<div class="body" style="-webkit-line-clamp:${lines}">${uiEscape(e.body)}</div>`+
       `${e.cue?`<div class="cue">${uiEscape(e.cue)}</div>`:''}`+
       `<div class="seq">${String(e.id).padStart(2,'0')}</div>`+
@@ -80,17 +81,20 @@ function renderLayout(){
     d.innerHTML=`<span>WORST · ${q.cost.toFixed(1)}</span>`;
     L.appendChild(d)
   }
-  $('stageMeta').textContent=`${entries.length} Entries · ${mode.toUpperCase()} · candidate ${selected+1}`;
+  let phraseCount=c.phraseCount||c.phrases?.length||new Set(c.ps.map(p=>p.phraseId)).size;
+  $('stageMeta').textContent=`${entries.length} Entries · ${phraseCount} phrases · ${mode.toUpperCase()} · candidate ${selected+1}`;
   candidates.forEach((x,i)=>{
-    let b=document.createElement('button');
+    let b=document.createElement('button'),count=x.phraseCount||x.phrases?.length||new Set(x.ps.map(p=>p.phraseId)).size;
     b.className='cand'+(i===selected?' on':'');
-    b.textContent=`#${i+1} · ${x.s.toFixed(1)}`;
+    b.textContent=`#${i+1} · ${x.s.toFixed(1)} · ${count}P`;
     b.onclick=()=>{selected=i;renderAll()};
     $('cands').appendChild(b)
   });
+  let phraseSummary=(c.phrases||[]).map(phrase=>`${phrase.start+1}–${phrase.end} ${phrase.template}`).join(' | ');
   $('stats').textContent=
     Object.entries(c.m).map(([k,v])=>`${k}: ${v.toFixed(1)} × ${W[k]}`).join('\n')+
-    `\nscore: ${c.s.toFixed(2)}`
+    `\nscore: ${c.s.toFixed(2)}`+
+    `\nphrases: ${phraseSummary||'—'}`
 }
 function renderLadder(){
   let h=$('ladder');
@@ -123,13 +127,17 @@ function renderCost(){
 function renderEditorial(){
   let e=entries.find(x=>x.id===focus);
   if(!e){$('editorialInspector').innerHTML='Click a block.';return}
-  let m=e.editorial,state=m?.status||'missing',usage=e.usage,cost=usage?(usage.actualUSD??usage.estimatedUSD??0):0;
+  let m=e.editorial,state=m?.status||'missing',usage=e.usage,cost=usage?(usage.actualUSD??usage.estimatedUSD??0):0,
+      entryIndex=entries.indexOf(e),placement=candidates[selected]?.ps?.[entryIndex];
   $('editorialInspector').innerHTML=
     `<span class="tag ${uiEscape(state)}">${uiEscape(state.toUpperCase())}</span>`+
     `<span class="tag">${uiEscape(e.provenance.toUpperCase())}</span>`+
     `<div class="editorial-grid">`+
     `<span>Entry</span><b>${String(e.id).padStart(2,'0')}</b>`+
     `<span>Source ID</span><b>${uiEscape(e.externalId||'—')}</b>`+
+    `<span>Phrase</span><b>${Number.isInteger(placement?.phraseId)?'P'+(placement.phraseId+1):'—'}</b>`+
+    `<span>Template</span><b>${uiEscape(placement?.template||'—')}</b>`+
+    `<span>Frame</span><b>${placement?`${placement.x}:${placement.row} · ${placement.span}×${placement.rows}`:'—'}</b>`+
     `<span>Function</span><b>${uiEscape(m?.function||'—')}</b>`+
     `<span>Continuity</span><b>${m?.continuity?.toFixed?.(2)??'—'}</b>`+
     `<span>Dependency</span><b>${uiEscape(m?.dependency||'—')}</b>`+
@@ -153,7 +161,9 @@ function renderRolling(){
     `<span>Max</span><b>${d.max.toFixed(1)}</b>`+
     `<span>Worst row</span><b>${q?.start??'—'}</b>`+
     `<span>Primary white</span><b>${q?(q.wf.largestRatio*100).toFixed(0)+'%':'—'}</b>`+
-    `<span>White fields</span><b>${q?.wf.components??'—'}</b>`
+    `<span>White fields</span><b>${q?.wf.components??'—'}</b>`+
+    `<span>Corridor</span><b>${Number.isFinite(d.corridor)?d.corridor.toFixed(1):'—'}</b>`+
+    `<span>Balance</span><b>${Number.isFinite(d.balance)?d.balance.toFixed(1):'—'}</b>`
 }
 let weightBuilt=false;
 function renderWeights(){
