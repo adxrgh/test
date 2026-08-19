@@ -5,7 +5,43 @@ function spatialContext(p,state){let recent=state.ps.slice(-4),cost=20;if(recent
 function stability(e,p){let q=previous.get(e.id);if(!q)return 0;return clamp(Math.abs(q.x-p.x)*14+Math.abs(q.row-p.row)*.9+Math.abs(q.span-p.span)*10,0,100)}
 function editorialFit(e,p,state){let m=editorialValue(e);if(!m)return 0;let prefs={referenceMaterial:[4,5],background:[3,4],fragment:[2,3],continuation:[3,4],response:[3,4],newThought:[4,5],neutral:[4]}[m.function]||[4],shape=Math.min(...prefs.map(s=>Math.abs(s-p.span)))*11,prev=state.ps.at(-1),rel=0;if(prev){let gap=Math.max(0,p.row-(prev.row+prev.rows)),sameAxis=(p.x===prev.x||p.x+p.span===prev.x+prev.span);if(m.continuity>.6){rel+=Math.max(0,gap-4)*1.8;rel+=sameAxis?0:10*m.continuity}if(m.topicShift>.68){rel+=gap<5?(5-gap)*2.2*m.topicShift:0;rel+=sameAxis?8*m.topicShift:0}if(m.dependency==='dependsOnPrevious'){rel+=gap>6?(gap-6)*2:0;rel+=sameAxis?0:12}if(m.dependency==='refersToNearby')rel+=gap>10?(gap-10)*1.2:0}return clamp(shape+rel,0,100)}
 function placementScore(e,p,state){let a=intrinsic(e,p),ed=editorialFit(e,p,state),ctx=spatialContext(p,state),st=stability(e,p);return{intrinsic:a.cost,editorial:ed,context:ctx,stability:st,fill:a.fill,cpl:a.cpl,aspect:a.aspect,total:(5*a.cost+2*ed+3*ctx+8*st)/18}}
-function placements(e,state){let out=[];for(let span=2;span<=6;span++){let rr=rowsFor(e,span);for(let row=state.cursor;row<=state.cursor+18;row++)for(let x=0;x<=6-span;x++){let p={id:e.id,x,row,span,rows:rr};if(state.ps.some(q=>overlap(p,q)))continue;p.shape=placementScore(e,p,state);out.push(p)}}return out.sort((a,b)=>a.shape.total-b.shape.total).slice(0,32)}
+function layoutBottom(ps){return ps.reduce((m,p)=>Math.max(m,p.row+p.rows),0)}
+function placementRows(state){
+  let bottom=Math.max(state.cursor,layoutBottom(state.ps)),set=new Set();
+  let add=value=>{
+    let row=Math.max(state.cursor,Math.round(value));
+    if(row<=bottom+24)set.add(row);
+  };
+  for(let row=state.cursor;row<=state.cursor+18;row++)add(row);
+  state.ps.forEach(q=>{
+    add(q.row);
+    add(q.row+q.rows);
+    add(q.row+q.rows+2);
+    add(q.row+q.rows+4);
+  });
+  for(let row=bottom;row<=bottom+12;row++)add(row);
+  return[...set].sort((a,b)=>a-b)
+}
+function fallbackPlacement(e,state){
+  let span=6,rows=rowsFor(e,span),row=Math.max(state.cursor,layoutBottom(state.ps)+4),p={id:e.id,x:0,row,span,rows};
+  while(state.ps.some(q=>overlap(p,q))){row++;p.row=row}
+  p.shape=placementScore(e,p,state);
+  return p
+}
+function placements(e,state){
+  let out=[],rows=placementRows(state);
+  for(let span=2;span<=6;span++){
+    let rr=rowsFor(e,span);
+    for(let row of rows)for(let x=0;x<=6-span;x++){
+      let p={id:e.id,x,row,span,rows:rr};
+      if(state.ps.some(q=>overlap(p,q)))continue;
+      p.shape=placementScore(e,p,state);
+      out.push(p)
+    }
+  }
+  if(!out.length)out.push(fallbackPlacement(e,state));
+  return out.sort((a,b)=>a.shape.total-b.shape.total).slice(0,32)
+}
 function intersect(p,a,b){return Math.max(0,Math.min(p.row+p.rows,b)-Math.max(p.row,a))}
 function viewportRows(){return clamp(Math.round((Math.max(520,innerHeight||720)-84)/U),54,96)}
 function windowStarts(ps,V){let max=Math.max(...ps.map(p=>p.row+p.rows)),last=Math.max(0,max-V),step=Math.max(12,Math.round(V/4)),set=new Set([0,last]);for(let s=0;s<=last;s+=step)set.add(clamp(Math.round(s),0,last));ps.forEach(p=>[p.row,p.row+p.rows,p.row-V,p.row+p.rows-V].forEach(s=>set.add(clamp(Math.round(s),0,last))));return[...set].sort((a,b)=>a-b)}
@@ -15,5 +51,43 @@ function semanticCost(ps){let vals=[];for(let i=1;i<ps.length;i++){let e=entries
 function rolling(ps){let V=viewportRows(),wins=windowStarts(ps,V).map(start=>{let wf=whiteField(ps,start,V),comp=composition(ps,start,V),cost=(4*wf.cost+3*comp)/7;return{start,V,wf,comp,cost}}),costs=wins.map(x=>x.cost),p90=pct(costs,.9),avg=mean(costs),max=Math.max(0,...costs),roll=.5*p90+.3*avg+.2*max,worst=wins.reduce((a,b)=>!a||b.cost>a.cost?b:a,null);return{cost:roll,p90,mean:avg,max,worst,wins,whiteField:mean(wins.map(x=>x.wf.cost))}}
 function metrics(ps,full=true){let area=0,shape=0,move=0,editorial=0;ps.forEach((p,i)=>{let e=entries[i],a=p.span*p.rows;area+=Math.abs(a-e.target)/e.target*100;shape+=p.shape?.intrinsic||0;editorial+=p.shape?.editorial||0;let q=previous.get(p.id);if(q)move+=Math.abs(q.x-p.x)*9+Math.abs(q.row-p.row)*1.2+Math.abs(q.span-p.span)*5});let r=full?rolling(ps):{cost:0,whiteField:0,wins:[],worst:null,p90:0,mean:0,max:0};return{m:{shape:shape/ps.length,editorial:editorial/ps.length,semantic:semanticCost(ps),area:area/ps.length,whiteField:r.whiteField,rolling:r.cost,move:move/ps.length},diag:r}}
 function score(m){let s=0,z=0;Object.keys(W).forEach(k=>{s+=(m[k]||0)*W[k];z+=W[k]});return s/z}
-function generate(){let beam=[{i:0,cursor:0,ps:[]}];while(beam.some(s=>s.i<entries.length)){let next=[];for(let st of beam){if(st.i>=entries.length){next.push(st);continue}for(let p of placements(entries[st.i],st)){let ps=[...st.ps,p],mm=metrics(ps,false).m;next.push({i:st.i+1,cursor:Math.max(st.cursor,p.row),ps,m:mm,s:score(mm)})}}beam=next.sort((a,b)=>a.s-b.s).slice(0,76)}let finals=beam.filter(s=>s.i===entries.length).slice(0,60);finals.forEach(s=>{let mm=metrics(s.ps,true);s.m=mm.m;s.diag=mm.diag;s.s=score(s.m)});candidates=finals.sort((a,b)=>a.s-b.s).slice(0,8);selected=0;renderAll()}
+function emergencyLayout(){
+  let state={i:0,cursor:0,ps:[]};
+  entries.forEach(e=>{
+    let p=fallbackPlacement(e,state);
+    state.ps.push(p);
+    state.cursor=Math.max(state.cursor,p.row);
+    state.i++
+  });
+  return state
+}
+function activeDatasetSignature(){return entries.map((e,i)=>`${e.externalId||e.id||i}:${e.digest}`).join('|')}
+function generate(){
+  if(!entries.length){candidates=[];selected=0;renderAll();return}
+  let signature=activeDatasetSignature(),beam=[{i:0,cursor:0,ps:[]}];
+  while(beam.some(s=>s.i<entries.length)){
+    let next=[];
+    for(let st of beam){
+      if(st.i>=entries.length){next.push(st);continue}
+      for(let p of placements(entries[st.i],st)){
+        let ps=[...st.ps,p],mm=metrics(ps,false).m;
+        next.push({i:st.i+1,cursor:Math.max(st.cursor,p.row),ps,m:mm,s:score(mm)})
+      }
+    }
+    if(!next.length)break;
+    beam=next.sort((a,b)=>a.s-b.s).slice(0,76)
+  }
+  let finals=beam.filter(s=>s.i===entries.length).slice(0,60);
+  if(!finals.length)finals=[emergencyLayout()];
+  finals.forEach(s=>{
+    let mm=metrics(s.ps,true);
+    s.m=mm.m;
+    s.diag=mm.diag;
+    s.s=score(s.m);
+    s.datasetSignature=signature
+  });
+  candidates=finals.sort((a,b)=>a.s-b.s).slice(0,8);
+  selected=0;
+  renderAll()
+}
 function dominant(ps){let ids=new Set,V=viewportRows();windowStarts(ps,V).forEach(start=>{let a=ps.map(p=>({p,m:intersect(p,start,start+V)*p.span})).filter(x=>x.m>0).sort((x,y)=>y.m-x.m);if(a[0]&&(a.length===1||a[0].m/(a[1]?.m||1)>1.2))ids.add(a[0].p.id)});return ids}
