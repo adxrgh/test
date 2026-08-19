@@ -1,0 +1,218 @@
+:root {
+  --tb-typography-version: "type-v1";
+  --tb-font-sans: "Helvetica Neue", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --tb-font-serif: Georgia, "Songti SC", "STSong", serif;
+  --tb-font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  --tb-type-caption-size: 12px;
+  --tb-type-caption-line: 16px;
+  --tb-type-caption-weight: 500;
+
+  --tb-type-body-size: 16px;
+  --tb-type-body-line: 24px;
+  --tb-type-body-weight: 400;
+
+  --tb-type-dominant-size: 20px;
+  --tb-type-dominant-line: 24px;
+  --tb-type-dominant-weight: 600;
+
+  --tb-type-display-size: 40px;
+  --tb-type-display-line: 48px;
+  --tb-type-display-weight: 700;
+
+  --tb-type-sequence-size: 48px;
+  --tb-type-sequence-line: 48px;
+  --tb-type-sequence-weight: 700;
+
+  --tb-type-ui-size: 10px;
+  --tb-type-ui-line: 16px;
+  --tb-type-ui-weight: 500;
+
+  --tb-type-cue-size: 16px;
+  --tb-type-cue-line: 24px;
+  --tb-type-cue-weight: 400;
+
+  --tb-tracking-body: 0;
+  --tb-tracking-dominant: -0.01em;
+  --tb-tracking-caption: 0.04em;
+
+  --tb-block-pad-x: 8px;
+  --tb-block-pad-y: 8px;
+  --tb-block-chrome: 32px;
+}
+
+html,
+body {
+  font-family: var(--tb-font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+  font-synthesis: none;
+}
+
+.head h1 {
+  font-family: var(--tb-font-sans);
+  font-size: var(--tb-type-display-size);
+  line-height: var(--tb-type-display-line);
+  font-weight: var(--tb-type-display-weight);
+  letter-spacing: -0.03em;
+}
+
+.head small,
+.p h2,
+.stagehead,
+.profile-switch button,
+.mode button,
+.row button,
+.cand {
+  font-family: var(--tb-font-sans);
+  font-size: var(--tb-type-ui-size);
+  line-height: var(--tb-type-ui-line);
+  font-weight: 600;
+}
+
+.p h2,
+.head small {
+  letter-spacing: var(--tb-tracking-caption);
+}
+
+.p p,
+.status,
+.pricing,
+.profile-spec,
+.kv,
+.editorial-card,
+.opts,
+.w,
+.stats,
+.ladder div,
+.stagehead span {
+  font-family: var(--tb-font-sans);
+  font-size: var(--tb-type-ui-size);
+  line-height: var(--tb-type-ui-line);
+  font-weight: var(--tb-type-ui-weight);
+}
+
+textarea,
+.endpoint,
+.block .meta,
+.source-mark,
+.viewport-cut span,
+.worstband span {
+  font-family: var(--tb-font-mono);
+  font-synthesis: none;
+}
+
+textarea {
+  font-size: var(--tb-type-caption-size);
+  line-height: var(--tb-type-caption-line);
+  font-weight: 400;
+}
+
+.block,
+.app.profile-mobile .block {
+  padding: var(--tb-block-pad-y) var(--tb-block-pad-x);
+}
+
+.block .meta,
+.app.profile-mobile .block .meta {
+  position: absolute;
+  top: var(--tb-block-pad-y);
+  left: var(--tb-block-pad-x);
+  right: var(--tb-block-pad-x);
+  height: var(--tb-type-caption-line);
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  font-size: 10px;
+  line-height: var(--tb-type-caption-line);
+  font-weight: var(--tb-type-caption-weight);
+  letter-spacing: var(--tb-tracking-caption);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.body,
+.app.profile-mobile .body {
+  margin-top: var(--tb-type-caption-line);
+  font-family: var(--tb-font-sans);
+  font-size: var(--tb-type-body-size);
+  line-height: var(--tb-type-body-line);
+  font-weight: var(--tb-type-body-weight);
+  letter-spacing: var(--tb-tracking-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.dom .body,
+.app.profile-mobile .dom .body {
+  font-family: var(--tb-font-sans);
+  font-size: var(--tb-type-dominant-size);
+  line-height: var(--tb-type-dominant-line);
+  font-weight: var(--tb-type-dominant-weight);
+  letter-spacing: var(--tb-tracking-dominant);
+}
+
+.cue,
+.app.profile-mobile .cue {
+  margin-top: 0;
+  font-family: var(--tb-font-serif);
+  font-size: var(--tb-type-cue-size);
+  line-height: var(--tb-type-cue-line);
+  font-weight: var(--tb-type-cue-weight);
+  font-style: italic;
+  color: #555;
+}
+
+.seq,
+.app.profile-mobile .seq {
+  font-family: var(--tb-font-sans);
+  font-size: var(--tb-type-sequence-size);
+  line-height: var(--tb-type-sequence-line);
+  font-weight: var(--tb-type-sequence-weight);
+  letter-spacing: -0.06em;
+}
+
+.source-mark,
+.app.profile-mobile .source-mark {
+  right: var(--tb-block-pad-x);
+  bottom: 0;
+  font-size: 9px;
+  line-height: var(--tb-type-caption-line);
+  font-weight: var(--tb-type-caption-weight);
+  letter-spacing: var(--tb-tracking-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.clean .body {
+  margin-top: 0;
+}
+
+.clean .block .meta {
+  display: none;
+}
+
+.typography-spec {
+  font-family: var(--tb-font-mono);
+  font-size: 9px;
+  line-height: 16px;
+  color: var(--muted);
+}
+
+@media (max-width: 780px) {
+  .head h1 {
+    font-size: 32px;
+    line-height: 40px;
+  }
+}
