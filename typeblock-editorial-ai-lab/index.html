@@ -12,7 +12,7 @@
     <div class="row"><button id="analyze" class="primary">Analyze stale / missing</button><button id="clearAnalysis">Clear</button></div>
     <input class="endpoint hidden" id="endpoint" value="/api/editorial-scan" aria-label="Live endpoint">
     <div class="status" id="analysisStatus"><strong>MOCK</strong> — local deterministic editorial scan. No API call.</div>
-    <div class="pricing">Cost model: <code>gpt-5-mini</code> · pricing snapshot 2026-08-19</div>
+    <div class="pricing">MOCK estimate: <code>gpt-5-mini</code> baseline · LIVE: OpenRouter-reported usage/cost when available</div>
   </section>
   <section class="p"><h2>Cost ledger</h2><div class="kv" id="costLedger"></div></section>
   <section class="p"><h2>Editorial inspector</h2><div class="editorial-card" id="editorialInspector">Click a block.</div></section>
@@ -23,5 +23,6 @@
 <main class="main"><div class="stage"><div class="stagehead"><b>TypeBlock / Layout</b><span id="stageMeta"></span></div><div id="layout"><div class="grid" id="gridlines"></div></div></div><div class="cands" id="cands"></div><div class="stats" id="stats"></div></main>
 </div>
 <script src="core.js"></script>
+<script src="provider-openrouter.js"></script>
 <script src="solver.js"></script>
 <script src="ui.js"></script>
