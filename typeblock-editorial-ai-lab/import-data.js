@@ -10,6 +10,15 @@
     status.innerHTML = html;
   }
 
+  function escapeHTML(value) {
+    return String(value)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
   function firstValue(record, keys) {
     for (const key of keys) {
       const value = record?.[key];
@@ -18,32 +27,14 @@
     return null;
   }
 
-  function textFrom(record) {
-    const value = firstValue(record, ['plainText', 'content', 'body', 'text', 'note']);
-    if (typeof value === 'string') return value.trim();
-    if (Array.isArray(value)) return value.map(String).join('\n').trim();
-    return '';
-  }
-
-  function timestampFrom(record) {
-    const raw = firstValue(record, [
-      'createdAt', 'created_at', 'creationDate', 'created',
-      'timestamp', 'date', 'updatedAt', 'updated_at'
-    ]);
-    if (raw === null) return NaN;
+  function timestampFromValue(raw) {
+    if (raw === null || raw === undefined || raw === '') return NaN;
     if (typeof raw === 'number') {
       const ms = raw < 10_000_000_000 ? raw * 1000 : raw;
       return Number.isFinite(ms) ? ms : NaN;
     }
     const parsed = Date.parse(String(raw));
     return Number.isFinite(parsed) ? parsed : NaN;
-  }
-
-  function provenanceFrom(record) {
-    if (record?.isAuthored === true || record?.isMine === true) return 'authored';
-    const raw = String(firstValue(record, ['provenance', 'source', 'sourceType', 'kind', 'origin']) || '').toLowerCase();
-    if (/(authored|self|own|mine|user|journal|note|thought)/.test(raw)) return 'authored';
-    return 'collected';
   }
 
   function externalIdFrom(record, index) {
@@ -56,50 +47,189 @@
       .replace(/^@(source|cue)\b/gim, '＠$1');
   }
 
-  function normalizeRecords(json) {
-    const source = Array.isArray(json)
-      ? json
-      : Array.isArray(json?.entries)
-        ? json.entries
-        : Array.isArray(json?.items)
-          ? json.items
-          : null;
-    if (!source) throw new Error('JSON must be an array, {"entries": [...]}, or {"items": [...]}.');
+  function stableLatest(records) {
+    return records
+      .sort((a, b) => (b.timestamp - a.timestamp) || (b.sourceIndex - a.sourceIndex))
+      .slice(0, LATEST_COUNT)
+      .sort((a, b) => (a.timestamp - b.timestamp) || (a.sourceIndex - b.sourceIndex));
+  }
 
+  function normalizeFudebamExport(json) {
+    const source = json.entries;
     const valid = [];
-    let emptyText = 0;
-    let missingDate = 0;
+    const stats = {
+      format: 'fudebam',
+      total: source.length,
+      invalidRecord: 0,
+      inactive: 0,
+      hidden: 0,
+      merged: 0,
+      hiddenAndMerged: 0,
+      emptyText: 0,
+      missingDate: 0
+    };
 
-    source.forEach((record, index) => {
-      if (!record || typeof record !== 'object') return;
-      const text = textFrom(record);
+    source.forEach((record, sourceIndex) => {
+      if (!record || typeof record !== 'object' || Array.isArray(record)) {
+        stats.invalidRecord += 1;
+        return;
+      }
+
+      // Fudebam tombstones and merged source records are not active Layout Entries.
+      const isHidden = Boolean(record.hiddenAt);
+      const isMerged = Boolean(record.mergedIntoEntryID);
+      if (isHidden) stats.hidden += 1;
+      if (isMerged) stats.merged += 1;
+      if (isHidden && isMerged) stats.hiddenAndMerged += 1;
+      if (isHidden || isMerged) {
+        stats.inactive += 1;
+        return;
+      }
+
+      const text = typeof record.content === 'string' ? record.content.trim() : '';
       if (!text) {
-        emptyText += 1;
+        stats.emptyText += 1;
         return;
       }
-      const timestamp = timestampFrom(record);
+
+      const timestamp = timestampFromValue(record.createdAt);
       if (!Number.isFinite(timestamp)) {
-        missingDate += 1;
+        stats.missingDate += 1;
         return;
       }
+
+      const captureOrigin = String(record.captureOrigin || 'unknown').toLowerCase();
       valid.push({
-        externalId: externalIdFrom(record, index),
+        externalId: externalIdFrom(record, sourceIndex),
         text,
         timestamp,
-        provenance: provenanceFrom(record)
+        sourceIndex,
+        captureOrigin,
+        provenance: captureOrigin === 'authored' ? 'authored' : 'collected'
       });
     });
 
     if (!valid.length) {
-      throw new Error('No valid records found. Every selected record needs text and a parseable createdAt/date.');
+      throw new Error(
+        'No active Fudebam Entries found. The importer requires entries[].content and entries[].createdAt, and excludes hiddenAt / mergedIntoEntryID records.'
+      );
     }
 
-    const latest = valid
-      .sort((a, b) => b.timestamp - a.timestamp)
-      .slice(0, LATEST_COUNT)
-      .sort((a, b) => a.timestamp - b.timestamp);
+    const latest = stableLatest(valid);
+    const latestIds = new Set(latest.map(record => record.externalId));
+    const annotations = Array.isArray(json.annotations) ? json.annotations : [];
+    const selectedAnnotations = annotations.filter(annotation =>
+      annotation &&
+      latestIds.has(String(annotation.entryID || '')) &&
+      (annotation.status === undefined || annotation.status === 'active')
+    );
 
-    return { total: source.length, valid: valid.length, emptyText, missingDate, latest };
+    const annotationKinds = selectedAnnotations.reduce((result, annotation) => {
+      const kind = String(annotation.kind || 'unknown');
+      result[kind] = (result[kind] || 0) + 1;
+      return result;
+    }, {});
+
+    const selectedAuthored = latest.filter(record => record.provenance === 'authored').length;
+
+    return {
+      ...stats,
+      valid: valid.length,
+      latest,
+      selectedAuthored,
+      selectedCollected: latest.length - selectedAuthored,
+      sidecars: {
+        annotations: annotations.length,
+        revisions: Array.isArray(json.revisions) ? json.revisions.length : 0,
+        aiReviewSessions: Array.isArray(json.aiReviewSessions) ? json.aiReviewSessions.length : 0,
+        selectedAnnotations: selectedAnnotations.length,
+        annotationKinds
+      }
+    };
+  }
+
+  function genericTextFrom(record) {
+    const value = firstValue(record, ['plainText', 'content', 'body', 'text', 'note']);
+    if (typeof value === 'string') return value.trim();
+    if (Array.isArray(value)) return value.map(String).join('\n').trim();
+    return '';
+  }
+
+  function genericProvenanceFrom(record) {
+    if (record?.isAuthored === true || record?.isMine === true) return 'authored';
+    const raw = String(firstValue(record, ['provenance', 'source', 'sourceType', 'kind', 'origin']) || '').toLowerCase();
+    if (/(authored|self|own|mine|user|journal|note|thought)/.test(raw)) return 'authored';
+    return 'collected';
+  }
+
+  function normalizePlainArray(source) {
+    const valid = [];
+    const stats = {
+      format: 'plain-array',
+      total: source.length,
+      invalidRecord: 0,
+      inactive: 0,
+      hidden: 0,
+      merged: 0,
+      hiddenAndMerged: 0,
+      emptyText: 0,
+      missingDate: 0
+    };
+
+    source.forEach((record, sourceIndex) => {
+      if (!record || typeof record !== 'object' || Array.isArray(record)) {
+        stats.invalidRecord += 1;
+        return;
+      }
+      const text = genericTextFrom(record);
+      if (!text) {
+        stats.emptyText += 1;
+        return;
+      }
+      const timestamp = timestampFromValue(firstValue(record, [
+        'createdAt', 'created_at', 'creationDate', 'created',
+        'timestamp', 'date', 'updatedAt', 'updated_at'
+      ]));
+      if (!Number.isFinite(timestamp)) {
+        stats.missingDate += 1;
+        return;
+      }
+      valid.push({
+        externalId: externalIdFrom(record, sourceIndex),
+        text,
+        timestamp,
+        sourceIndex,
+        captureOrigin: null,
+        provenance: genericProvenanceFrom(record)
+      });
+    });
+
+    if (!valid.length) {
+      throw new Error('No valid records found. Every array record needs text and a parseable createdAt/date.');
+    }
+
+    const latest = stableLatest(valid);
+    const selectedAuthored = latest.filter(record => record.provenance === 'authored').length;
+    return {
+      ...stats,
+      valid: valid.length,
+      latest,
+      selectedAuthored,
+      selectedCollected: latest.length - selectedAuthored,
+      sidecars: null
+    };
+  }
+
+  function normalizeRecords(json) {
+    if (json && !Array.isArray(json) && Array.isArray(json.entries)) {
+      return normalizeFudebamExport(json);
+    }
+    if (Array.isArray(json)) {
+      return normalizePlainArray(json);
+    }
+    throw new Error(
+      'Expected a Fudebam export with a top-level "entries" array, or a plain JSON array. Other top-level collections are not treated as Entries.'
+    );
   }
 
   function toDatasetText(records) {
@@ -110,14 +240,51 @@
 
   function dateLabel(ms) {
     return new Intl.DateTimeFormat(undefined, {
-      year: 'numeric', month: 'short', day: '2-digit',
-      hour: '2-digit', minute: '2-digit'
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
     }).format(new Date(ms));
+  }
+
+  function sidecarSummary(result) {
+    if (!result.sidecars) return '';
+    const selected = result.sidecars.selectedAnnotations;
+    const kinds = Object.entries(result.sidecars.annotationKinds)
+      .map(([kind, count]) => `${count} ${escapeHTML(kind)}`)
+      .join(', ');
+    const selectedLabel = selected
+      ? `${selected} active annotation${selected === 1 ? '' : 's'} linked to the selected Entries${kinds ? ` (${kinds})` : ''}`
+      : 'no active annotations linked to the selected Entries';
+
+    return (
+      ` Sidecars kept separate: ${result.sidecars.annotations} annotations, ` +
+      `${result.sidecars.revisions} revisions, ${result.sidecars.aiReviewSessions} AI review sessions; ${selectedLabel}.`
+    );
+  }
+
+  function exclusionSummary(result) {
+    const parts = [];
+    if (result.inactive) {
+      let inactive = `${result.inactive} inactive`;
+      const flags = [];
+      if (result.hidden) flags.push(`${result.hidden} hidden`);
+      if (result.merged) flags.push(`${result.merged} marked merged`);
+      if (result.hiddenAndMerged) flags.push(`${result.hiddenAndMerged} both`);
+      if (flags.length) inactive += ` (${flags.join(', ')})`;
+      parts.push(inactive);
+    }
+    if (result.emptyText) parts.push(`${result.emptyText} without text`);
+    if (result.missingDate) parts.push(`${result.missingDate} without valid createdAt`);
+    if (result.invalidRecord) parts.push(`${result.invalidRecord} invalid`);
+    return parts.length ? ` Excluded: ${parts.join('; ')}.` : '';
   }
 
   async function importFile(file) {
     if (!file) return;
     if (file.size > MAX_FILE_BYTES) throw new Error('File is larger than 50 MB.');
+
     const text = await file.text();
     let json;
     try {
@@ -129,7 +296,7 @@
     const result = normalizeRecords(json);
     document.getElementById('src').value = toDatasetText(result.latest);
 
-    // Do not carry metadata or cost from the previous dataset into the imported one.
+    // Never carry metadata, billing, or placement state from the previous dataset.
     entries = [];
     candidates = [];
     previous = new Map();
@@ -139,30 +306,37 @@
 
     const from = result.latest[0].timestamp;
     const to = result.latest[result.latest.length - 1].timestamp;
+    const formatLabel = result.format === 'fudebam' ? 'Fudebam export' : 'plain JSON array';
+
     setDataStatus(
-      `<strong>${file.name}</strong> — ${result.latest.length} latest Entries selected from ${result.valid} valid / ${result.total} total. ` +
+      `<strong>${escapeHTML(file.name)}</strong> — ${formatLabel}: ` +
+      `${result.latest.length} latest active Entries selected from ${result.valid} active / ${result.total} total. ` +
       `Layout order: ${dateLabel(from)} → ${dateLabel(to)}. ` +
-      `${result.missingDate} skipped without dates; ${result.emptyText} skipped without text. ` +
-      `The file stays in this browser; only these ${result.latest.length} Entries are sent when you click LIVE Analyze.`
+      `Selected source identity: ${result.selectedAuthored} authored / ${result.selectedCollected} collected.` +
+      exclusionSummary(result) +
+      sidecarSummary(result) +
+      ` The file remains local; only these ${result.latest.length} Entry texts are sent after you click LIVE Analyze.`
     );
 
     setMode('live');
-    setStatus(`<strong>LIVE</strong> — ${result.latest.length} imported Entries are ready. Click Analyze stale / missing to run OpenRouter.`);
+    setStatus(
+      `<strong>LIVE</strong> — ${result.latest.length} imported Entries are ready. ` +
+      `Click Analyze stale / missing to run OpenRouter.`
+    );
   }
 
   fileInput.addEventListener('change', async event => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setDataStatus(`<strong>READING</strong> — ${file.name}`);
+    setDataStatus(`<strong>READING</strong> — ${escapeHTML(file.name)}`);
     try {
       await importFile(file);
     } catch (error) {
-      setDataStatus(`<strong>IMPORT FAILED</strong> — ${String(error.message || error)}`);
+      setDataStatus(`<strong>IMPORT FAILED</strong> — ${escapeHTML(String(error.message || error))}`);
     } finally {
       fileInput.value = '';
     }
   });
 
-  // MOCK is intentionally removed from the public experiment.
   setMode('live');
 })();
