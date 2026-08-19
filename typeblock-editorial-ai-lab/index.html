@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="phrase-layout.css">
 <div class="app" id="app">
-<header class="head"><h1>TypeBlock<br>Editorial AI Lab</h1><small>local data → editorial scan → phrase layout</small></header>
+<header class="head"><h1>TypeBlock<br>Editorial AI Lab</h1><small>local data → editorial scan → responsive phrase layout</small></header>
 <aside class="side">
   <section class="p"><h2>Dataset</h2>
     <div class="row"><input id="dataFile" type="file" accept=".json,application/json"><a href="data-template.json" download>JSON template</a></div>
@@ -15,7 +15,15 @@
     <div class="row"><button id="apply">Apply text</button><button id="reset">Reset sample</button></div>
     <p>Fudebam import reads only <code>entries[]</code>: <code>content</code>, <code>createdAt</code>, and <code>captureOrigin</code>. Records with <code>hiddenAt</code> or <code>mergedIntoEntryID</code> are excluded. Annotations, revisions, and AI review sessions remain sidecars rather than becoming Layout Entries. The newest 10 active Entries are selected, then placed oldest → newest.</p>
     <p>The selected 10-entry snapshot and its Editorial Analysis are stored locally in this browser with IndexedDB. Reopening the same localhost page restores them without another API call when the Entry text and model are unchanged.</p>
-    <p>The layout now groups consecutive Entries into 1–4 item Editorial Phrases. AI continuity and topic-shift signals are combined with a deterministic local text relation check; each phrase then selects a legal six-column composition while every Entry keeps its length-derived area.</p>
+    <p>The layout groups consecutive Entries into 1–4 item Editorial Phrases. AI continuity and topic-shift signals are combined with a deterministic local text relation check; each phrase then selects a legal six-column composition while every Entry keeps its length-derived territory weight.</p>
+  </section>
+  <section class="p"><h2>Layout profile</h2>
+    <div class="profile-switch">
+      <button data-layout-profile="desktop" aria-pressed="false">DESKTOP</button>
+      <button data-layout-profile="mobile" class="on" aria-pressed="true">MOBILE</button>
+    </div>
+    <div class="status" id="profileStatus"><strong>MOBILE 390×844</strong> — six logical columns, 16 pt margins, 8 pt gutters; long text is restricted to 5–6 columns.</div>
+    <p class="profile-spec">The two profiles reuse the same Entry order, Editorial Analysis, phrase grouping, and area ratios. Only legal templates, physical gutters, line-measure constraints, and rolling viewport scoring change.</p>
   </section>
   <section class="p"><h2>Editorial analysis</h2>
     <div class="mode"><button data-mode="off">OFF</button><button data-mode="live" class="on">LIVE</button></div>
@@ -34,6 +42,7 @@
 </div>
 <script>window.TYPEBLOCK_DEFERRED_BOOT=true;</script>
 <script src="core.js"></script>
+<script src="layout-profile.js"></script>
 <script src="provider-openrouter.js"></script>
 <script src="solver-phrase-model.js"></script>
 <script src="solver-phrase-templates.js"></script>
