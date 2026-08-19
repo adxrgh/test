@@ -4,6 +4,7 @@
 <title>TypeBlock Editorial AI Lab</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="phrase-layout.css">
+<link rel="stylesheet" href="typography.css">
 <div class="app" id="app">
 <header class="head"><h1>TypeBlock<br>Editorial AI Lab</h1><small>local data → editorial scan → responsive phrase layout</small></header>
 <aside class="side">
@@ -25,6 +26,10 @@
     <div class="status" id="profileStatus"><strong>MOBILE 390×844</strong> — six logical columns, 16 pt margins, 8 pt gutters; long text is restricted to 5–6 columns.</div>
     <p class="profile-spec">The two profiles reuse the same Entry order, Editorial Analysis, phrase grouping, and area ratios. Only legal templates, physical gutters, line-measure constraints, and rolling viewport scoring change.</p>
   </section>
+  <section class="p"><h2>Typography</h2>
+    <div class="status" id="typographyStatus"><strong>TYPE V1</strong> — initializing browser text measurement.</div>
+    <p class="typography-spec">Sans body with explicit CJK fallback · 16/24 body · 20/24 dominant · 12/16 caption tokens · standard 400/500/600/700 weights · 4/8 px baseline lock. Text is measured in the active browser font rather than estimated from a fixed average glyph width.</p>
+  </section>
   <section class="p"><h2>Editorial analysis</h2>
     <div class="mode"><button data-mode="off">OFF</button><button data-mode="live" class="on">LIVE</button></div>
     <div class="row"><button id="analyze" class="primary">Analyze stale / missing</button><button id="clearAnalysis">Clear</button></div>
@@ -43,10 +48,13 @@
 <script>window.TYPEBLOCK_DEFERRED_BOOT=true;</script>
 <script src="core.js"></script>
 <script src="layout-profile.js"></script>
+<script src="text-metrics.js"></script>
 <script src="provider-openrouter.js"></script>
 <script src="solver-phrase-model.js"></script>
+<script src="typography-layout-adapter.js"></script>
 <script src="solver-phrase-templates.js"></script>
 <script src="solver-phrase-engine.js"></script>
 <script src="ui.js"></script>
+<script src="typography-ui.js"></script>
 <script src="persistence.js"></script>
 <script src="import-data.js"></script>
