@@ -1,0 +1,88 @@
+:root {
+  --tb-projection-version: "projection-v1";
+  --tb-type-title-size: 31px;
+  --tb-type-title-line: 40px;
+  --tb-type-title-mobile-size: 25px;
+  --tb-type-title-mobile-line: 32px;
+  --tb-type-title-weight: 700;
+  --tb-type-deck-size: 20px;
+  --tb-type-deck-line: 24px;
+  --tb-type-deck-weight: 500;
+  --tb-tracking-title: -0.02em;
+  --tb-tracking-deck: -0.005em;
+  --tb-projection-title-gap: 8px;
+  --tb-projection-deck-gap: 8px;
+}
+
+.article-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: var(--tb-type-caption-line) 0 var(--tb-projection-title-gap);
+  font-family: var(--tb-font-sans);
+  font-size: var(--tb-type-title-size);
+  line-height: var(--tb-type-title-line);
+  font-weight: var(--tb-type-title-weight);
+  letter-spacing: var(--tb-tracking-title);
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  font-synthesis: none;
+}
+
+.article-deck {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  margin: 0 0 var(--tb-projection-deck-gap);
+  font-family: var(--tb-font-sans);
+  font-size: var(--tb-type-deck-size);
+  line-height: var(--tb-type-deck-line);
+  font-weight: var(--tb-type-deck-weight);
+  letter-spacing: var(--tb-tracking-deck);
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+  font-synthesis: none;
+}
+
+.has-editorial-projection .article-body {
+  margin-top: 0;
+}
+
+.has-editorial-projection:not(.has-title) .article-deck {
+  margin-top: var(--tb-type-caption-line);
+}
+
+.clean .article-title,
+.clean .has-editorial-projection:not(.has-title) .article-deck {
+  margin-top: 0;
+}
+
+.projection-ladder {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--tb-font-mono);
+  font-size: 7px;
+  line-height: 12px;
+  color: var(--muted);
+}
+
+.projection-ladder.projection-ready {
+  color: var(--ink);
+}
+
+.projection-ladder.projection-stale {
+  color: #9a5b00;
+}
+
+#projectionLedger {
+  margin-top: 8px;
+}
+
+@media (max-width: 780px) {
+  .article-title {
+    font-size: var(--tb-type-title-mobile-size);
+    line-height: var(--tb-type-title-mobile-line);
+  }
+}
