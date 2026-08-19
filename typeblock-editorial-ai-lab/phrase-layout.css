@@ -1,2 +1,29 @@
 .mode{grid-template-columns:repeat(2,1fr)}
 .stats{line-height:1.5}
+.profile-switch{display:grid;grid-template-columns:repeat(2,1fr);border:1px solid var(--ink);margin-bottom:8px}
+.profile-switch button{border:0;border-right:1px solid var(--ink);background:transparent;padding:8px 5px;font-size:10px;font-weight:800;cursor:pointer}
+.profile-switch button:last-child{border-right:0}
+.profile-switch button.on{background:var(--ink);color:var(--paper)}
+.profile-spec{font-size:9px;line-height:1.45;color:var(--muted)}
+
+.app.profile-mobile .main{display:flex;flex-direction:column;align-items:center;min-width:0}
+.app.profile-mobile .stage{position:relative;width:min(390px,100%);max-width:390px;box-shadow:0 16px 44px rgba(17,17,15,.12)}
+.app.profile-mobile .stagehead{padding:11px 16px}
+.app.profile-mobile #layout{width:calc(100% - 32px);min-height:844px;margin:0 16px;background-size:100% 8px}
+.app.profile-mobile .grid{gap:8px}
+.app.profile-mobile .block{padding:8px 6px 6px}
+.app.profile-mobile .block .meta{font-size:6px;line-height:1.35;letter-spacing:.04em;margin-bottom:5px}
+.app.profile-mobile .body{font-size:14px;line-height:1.55;font-weight:570;letter-spacing:-.005em}
+.app.profile-mobile .dom .body{font-size:17px;line-height:1.42;font-weight:760;letter-spacing:-.02em}
+.app.profile-mobile .seq{font-size:52px}
+.app.profile-mobile .source-mark{right:5px;bottom:4px;font-size:6px}
+.app.profile-mobile .cands,.app.profile-mobile .stats{width:min(390px,100%)}
+.app.profile-mobile .cands{padding-top:10px}
+.app.profile-mobile .stats{padding-bottom:32px}
+.viewport-cut{position:absolute;left:0;right:0;height:0;border-top:1px dashed rgba(255,75,0,.26);pointer-events:none;z-index:6}
+.viewport-cut span{position:absolute;right:3px;top:3px;padding:1px 3px;background:rgba(251,251,247,.92);font-size:6px;font-weight:800;letter-spacing:.08em;color:rgba(255,75,0,.66)}
+
+@media(max-width:780px){
+  .app.profile-mobile .stage{width:100%;max-width:390px}
+  .app.profile-mobile #layout{width:calc(100% - 32px)}
+}
