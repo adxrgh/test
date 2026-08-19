@@ -1,4 +1,7 @@
-function viewportRows(){return clamp(Math.round((Math.max(520,innerHeight||720)-84)/U),54,96)}
+function viewportRows(){
+  let rows=Math.round((layoutViewportHeight()-84)/U);
+  return clamp(rows,isMobileLayout()?80:54,isMobileLayout()?104:96)
+}
 function windowStarts(ps,V){
   let max=Math.max(...ps.map(p=>p.row+p.rows)),last=Math.max(0,max-V),step=Math.max(12,Math.round(V/4)),set=new Set([0,last]);
   for(let s=0;s<=last;s+=step)set.add(clamp(Math.round(s),0,last));
@@ -24,12 +27,14 @@ function corridorBalance(grid){
   }
   let occupied=left+right,imbalance=occupied?Math.abs(left-right)/occupied:1,
       leftOuter=(colOcc[0]+colOcc[1])/(2*V),rightOuter=(colOcc[4]+colOcc[5])/(2*V),
-      middle=(colOcc[2]+colOcc[3])/(2*V),corridor=0;
+      middle=(colOcc[2]+colOcc[3])/(2*V),corridor=0,
+      outerFloor=isMobileLayout()?.09:.12,
+      balanceLimit=isMobileLayout()?.24:.2;
   if(occupied/total>.2){
-    if(leftOuter<.12&&(rightOuter>.34||middle>.42))corridor+=(.12-leftOuter)*180;
-    if(rightOuter<.12&&(leftOuter>.34||middle>.42))corridor+=(.12-rightOuter)*180
+    if(leftOuter<outerFloor&&(rightOuter>.34||middle>.42))corridor+=(outerFloor-leftOuter)*(isMobileLayout()?145:180);
+    if(rightOuter<outerFloor&&(leftOuter>.34||middle>.42))corridor+=(outerFloor-rightOuter)*(isMobileLayout()?145:180)
   }
-  let balance=imbalance>.2?(imbalance-.2)*110:0;
+  let balance=imbalance>balanceLimit?(imbalance-balanceLimit)*(isMobileLayout()?92:110):0;
   return{cost:clamp(corridor+balance,0,100),corridor:clamp(corridor,0,100),balance:clamp(balance,0,100),imbalance,leftOuter,rightOuter}
 }
 
@@ -55,7 +60,7 @@ function whiteField(ps,start,V){
       fragment=small.length*4+Math.max(0,comps.length-6)*2.5,
       sliver=slivers.length*8,
       ragged=largest.ragged*18,
-      occupancy=occ>.84?(occ-.84)*130:occ<.28?(.28-occ)*45:0,
+      occupancy=occ>.84?(occ-.84)*130:occ<(isMobileLayout()?.24:.28)?((isMobileLayout()?.24:.28)-occ)*45:0,
       corridor=verticalCorridors.reduce((sum,c)=>sum+12+(c.area/total-.12)*100,0),
       cb=corridorBalance(g),cost=clamp(missing+fragment+sliver+ragged+occupancy+corridor+cb.cost*.65,0,100);
   return{cost,largestRatio,components:comps.length,smallCount:small.length,sliverCount:slivers.length,occ,corridorCost:clamp(corridor+cb.corridor,0,100),balanceCost:cb.balance,imbalance:cb.imbalance}
@@ -64,8 +69,8 @@ function whiteField(ps,start,V){
 function composition(ps,start,V){
   let visible=ps.map(p=>({p,m:intersect(p,start,start+V)*p.span})).filter(item=>item.m>0).sort((a,b)=>b.m-a.m);
   if(!visible.length)return 80;
-  let cost=0;
-  if(visible.length>5)cost+=(visible.length-5)*9;
+  let cost=0,maxVisible=isMobileLayout()?4:5;
+  if(visible.length>maxVisible)cost+=(visible.length-maxVisible)*9;
   if(visible.length>1){
     let ratio=visible[0].m/Math.max(1,visible[1].m);
     if(ratio<1.08)cost+=(1.08-ratio)*40;
@@ -110,8 +115,9 @@ function phraseGeometryCost(ps){
   let costs=[];
   groups.forEach(group=>{
     if(group.length<2)return;
-    let minX=Math.min(...group.map(p=>p.x)),maxX=Math.max(...group.map(p=>p.x+p.span)),coverage=maxX-minX,cost=0;
-    if(coverage<6)cost+=(6-coverage)*12;
+    let minX=Math.min(...group.map(p=>p.x)),maxX=Math.max(...group.map(p=>p.x+p.span)),coverage=maxX-minX,cost=0,
+        minimumCoverage=isMobileLayout()?5:6;
+    if(coverage<minimumCoverage)cost+=(minimumCoverage-coverage)*12;
     let uniqueAxes=new Set(group.map(p=>`${p.x}:${p.x+p.span}`));
     if(uniqueAxes.size<2)cost+=20;
     costs.push(cost)
@@ -130,8 +136,8 @@ function rolling(ps){
 function metrics(ps,full=true){
   let area=0,shape=0,move=0,editorial=0;
   ps.forEach((p,index)=>{
-    let e=entries[index],a=p.span*p.rows;
-    area+=Math.abs(a-e.target)/e.target*100;
+    let e=entries[index],a=p.span*p.rows,target=layoutTargetFor(e);
+    area+=Math.abs(a-target)/target*100;
     shape+=p.shape?.intrinsic||0;
     editorial+=p.shape?.editorial||0;
     let q=previous.get(p.id);
@@ -159,17 +165,26 @@ function score(m){
 function emergencyLayout(){
   let ps=[],row=0;
   entries.forEach((e,index)=>{
-    let span=index%2===0?4:3,x=index%2===0?0:3,p=makeLocalPlacement(e,index,x,row,span,index,'emergency',1);
+    let span,x;
+    if(isMobileLayout()){
+      span=index%2===0?6:Math.max(5,layoutMinSpan(e));
+      x=span===6?0:(index%4===1?C-span:0)
+    }else{
+      span=index%2===0?4:3;
+      x=index%2===0?0:3
+    }
+    let p=makeLocalPlacement(e,index,x,row,span,index,`emergency-${layoutProfileKey()}`,1);
     ps.push(p);row+=p.rows+4
   });
-  return{ps,phrases:ps.map((p,index)=>({id:index,start:index,end:index+1,template:'emergency',axis:p.x?'right':'left',row:p.row,height:p.rows,gap:4,cost:50})),rawCost:100}
+  return{ps,phrases:ps.map((p,index)=>({id:index,start:index,end:index+1,template:`emergency-${layoutProfileKey()}`,axis:p.x?'right':'left',row:p.row,height:p.rows,gap:4,cost:50})),rawCost:100}
 }
 
-function activeDatasetSignature(){return entries.map((e,index)=>`${e.externalId||e.id||index}:${e.digest}`).join('|')}
+function activeDatasetSignature(){return `${layoutProfileKey()}|`+entries.map((e,index)=>`${e.externalId||e.id||index}:${e.digest}`).join('|')}
 
-function candidateSignature(state){return state.ps.map(p=>`${p.x},${p.row},${p.span},${p.rows}`).join('|')}
+function candidateSignature(state){return `${layoutProfileKey()}|`+state.ps.map(p=>`${p.x},${p.row},${p.span},${p.rows}`).join('|')}
 
 function generate(){
+  window.TypeBlockLayoutProfile?.applyDom?.();
   if(!entries.length){candidates=[];selected=0;renderAll();return}
   let signature=activeDatasetSignature(),signals=boundarySignals(),partitions=phrasePartitions(signals),states=[];
   partitions.forEach(partition=>states.push(...layoutStatesForPartition(partition,signals).slice(0,20)));
@@ -180,7 +195,8 @@ function generate(){
     if(state.ps.length!==entries.length)return;
     let key=candidateSignature(state),computed=metrics(state.ps,true),candidate={
       ...state,m:computed.m,diag:computed.diag,s:score(computed.m)+state.rawCost/Math.max(1,entries.length)*.035,datasetSignature:signature,
-      phraseCount:state.phrases?.length||new Set(state.ps.map(p=>p.phraseId)).size
+      phraseCount:state.phrases?.length||new Set(state.ps.map(p=>p.phraseId)).size,
+      layoutProfile:layoutProfileKey()
     };
     if(!unique.has(key)||candidate.s<unique.get(key).s)unique.set(key,candidate)
   });
@@ -196,7 +212,7 @@ function generate(){
   }
   if(!candidates.length){
     let emergency=emergencyLayout(),computed=metrics(emergency.ps,true);
-    candidates=[{...emergency,m:computed.m,diag:computed.diag,s:score(computed.m),datasetSignature:signature,phraseCount:emergency.phrases.length}]
+    candidates=[{...emergency,m:computed.m,diag:computed.diag,s:score(computed.m),datasetSignature:signature,phraseCount:emergency.phrases.length,layoutProfile:layoutProfileKey()}]
   }
   selected=0;
   renderAll()
