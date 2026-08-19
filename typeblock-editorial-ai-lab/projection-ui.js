@@ -2,6 +2,7 @@
   'use strict';
 
   const projectionSystem = window.EditorialProjection;
+  const textMetrics = window.TypeBlockTextMetrics;
   if (!projectionSystem) return;
 
   function activeProjection(entry) {
@@ -26,6 +27,43 @@
     return parts.join(' · ') || 'projection ready';
   }
 
+  if (typeof cheapStateScore === 'function' && textMetrics?.bodyArea) {
+    cheapStateScore = function projectionCheapStateScore(state) {
+      let count = Math.max(1, state.phrases.length), area = 0, shape = 0, editorial = 0, move = 0;
+      state.ps.forEach((placement, index) => {
+        const entry = entries[index];
+        const target = layoutTargetFor(entry);
+        const actualBodyArea = textMetrics.bodyArea(entry, placement);
+        area += Math.abs(actualBodyArea - target) / target * 100;
+        shape += placement.shape.intrinsic || 0;
+        editorial += placement.shape.editorial || 0;
+        move += placement.shape.stability || 0;
+      });
+      return state.rawCost / count +
+        .2 * shape / state.ps.length +
+        .16 * editorial / state.ps.length +
+        .12 * area / state.ps.length +
+        .08 * move / state.ps.length;
+    };
+  }
+
+  if (typeof metrics === 'function' && textMetrics?.bodyArea) {
+    const baseLayoutMetrics = metrics;
+    metrics = function projectionAwareLayoutMetrics(ps, full = true) {
+      const result = baseLayoutMetrics(ps, full);
+      if (!result?.m || !ps.length) return result;
+      let area = 0;
+      ps.forEach((placement, index) => {
+        const entry = entries[index];
+        const target = layoutTargetFor(entry);
+        const actualBodyArea = textMetrics.bodyArea(entry, placement);
+        area += Math.abs(actualBodyArea - target) / target * 100;
+      });
+      result.m.area = area / ps.length;
+      return result;
+    };
+  }
+
   if (typeof activeDatasetSignature === 'function') {
     const baseDatasetSignature = activeDatasetSignature;
     activeDatasetSignature = () => {
@@ -43,7 +81,6 @@
       baseRenderLayout();
       const candidate = candidates[selected];
       if (!candidate) return;
-      const metrics = window.TypeBlockTextMetrics;
 
       document.querySelectorAll('#layout .block').forEach((block, index) => {
         const entry = entries[index];
@@ -75,11 +112,11 @@
           }
         }
 
-        if (metrics) {
-          const lineCount = metrics.visibleLines(entry, placement.span, placement.rows);
+        if (textMetrics) {
+          const lineCount = textMetrics.visibleLines(entry, placement.span, placement.rows);
           body.style.webkitLineClamp = String(lineCount);
           body.style.lineClamp = String(lineCount);
-          const header = metrics.headerMetrics?.(entry, placement.span);
+          const header = textMetrics.headerMetrics?.(entry, placement.span);
           if (header) block.dataset.projectionHeader = `${header.titleLines}:${header.deckLines}:${header.extraRows}`;
         }
       });
@@ -93,7 +130,7 @@
       if (stats && !stats.textContent.includes('projection:')) {
         const titles = entries.filter(entry => entry.projection?.title).length;
         const decks = entries.filter(entry => entry.projection?.deck).length;
-        stats.textContent = `projection: v1 · ${titles} titles · ${decks} decks\n${stats.textContent}`;
+        stats.textContent = `projection: v1 · ${titles} titles · ${decks} decks · body territory preserved\n${stats.textContent}`;
       }
     };
   }
