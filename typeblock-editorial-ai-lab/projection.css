@@ -46,8 +46,14 @@
   font-synthesis: none;
 }
 
-.has-editorial-projection .article-body {
+.has-editorial-projection .article-body,
+.has-editorial-projection.dom .article-body,
+.app.profile-mobile .has-editorial-projection.dom .article-body {
   margin-top: 0;
+  font-size: var(--tb-type-body-size);
+  line-height: var(--tb-type-body-line);
+  font-weight: var(--tb-type-body-weight);
+  letter-spacing: var(--tb-tracking-body);
 }
 
 .has-editorial-projection:not(.has-title) .article-deck {
