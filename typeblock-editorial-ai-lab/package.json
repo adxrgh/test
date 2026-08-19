@@ -1,0 +1,15 @@
+{
+  "name": "typeblock-editorial-ai-lab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node --watch server.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
