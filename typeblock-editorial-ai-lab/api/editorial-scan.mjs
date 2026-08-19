@@ -88,6 +88,35 @@ function extractChatContent(response) {
   return "";
 }
 
+function parseStructuredOutput(raw) {
+  const text = String(raw || "").trim();
+  const attempts = [text];
+
+  const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fenced?.[1]) attempts.push(fenced[1].trim());
+
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    attempts.push(text.slice(firstBrace, lastBrace + 1));
+  }
+
+  let lastError = null;
+  for (const candidate of [...new Set(attempts)]) {
+    try {
+      return JSON.parse(candidate);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  const err = new Error(
+    `OpenRouter returned structured output that could not be parsed as JSON (${lastError?.message || "unknown parse error"}).`
+  );
+  err.statusCode = 502;
+  throw err;
+}
+
 function configuredPricing() {
   const num = (name, fallback) => {
     const value = Number(process.env[name]);
@@ -171,7 +200,8 @@ export async function runEditorialScan(payload) {
         }
       },
       provider: { require_parameters: true },
-      max_tokens: Math.max(600, Math.min(6000, items.length * 120)),
+      plugins: [{ id: "response-healing" }],
+      max_tokens: Math.max(800, Math.min(8000, items.length * 160)),
       stream: false
     })
   });
@@ -185,22 +215,23 @@ export async function runEditorialScan(payload) {
     throw err;
   }
 
+  const choice = responseBody?.choices?.[0];
+  if (choice?.finish_reason === "error" || choice?.error) {
+    const message = choice?.error?.message || "OpenRouter provider failed while generating the structured output.";
+    const err = new Error(message);
+    err.statusCode = 502;
+    throw err;
+  }
+
   const outputText = extractChatContent(responseBody);
   if (!outputText) {
-    const finishReason = responseBody?.choices?.[0]?.finish_reason || "unknown";
+    const finishReason = choice?.finish_reason || "unknown";
     const err = new Error(`OpenRouter returned no structured output text (finish_reason: ${finishReason}).`);
     err.statusCode = 502;
     throw err;
   }
 
-  let parsed;
-  try {
-    parsed = JSON.parse(outputText);
-  } catch {
-    const err = new Error("OpenRouter returned structured output that could not be parsed as JSON.");
-    err.statusCode = 502;
-    throw err;
-  }
+  const parsed = parseStructuredOutput(outputText);
 
   const byId = new Set(sanitizedItems.map((item) => item.id));
   const analyses = (parsed.analyses || []).filter((item) => byId.has(item.id));
@@ -219,7 +250,7 @@ export async function runEditorialScan(payload) {
   return {
     schemaVersion: 1,
     provider: "openrouter",
-    transport: "chat_completions_structured_output",
+    transport: "chat_completions_structured_output_healed",
     model: responseBody.model || model,
     analyses,
     usage: responseBody.usage || {},
