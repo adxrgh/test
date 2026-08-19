@@ -72,13 +72,18 @@ Rules:
 - Return exactly one analysis for every input item, preserving each integer id.
 - Do not output prose outside the JSON schema.`;
 
-function extractOutputText(response) {
-  if (typeof response.output_text === "string" && response.output_text) return response.output_text;
-  for (const item of response.output || []) {
-    if (item.type !== "message") continue;
-    for (const content of item.content || []) {
-      if (content.type === "output_text" && typeof content.text === "string") return content.text;
-    }
+function extractChatContent(response) {
+  const content = response?.choices?.[0]?.message?.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (part?.type === "text" && typeof part.text === "string") return part.text;
+        if (typeof part?.text === "string") return part.text;
+        return "";
+      })
+      .join("");
   }
   return "";
 }
@@ -96,9 +101,13 @@ function configuredPricing() {
 }
 
 function fallbackUsageCost(usage, pricing) {
-  const input = Number(usage?.input_tokens ?? usage?.prompt_tokens ?? 0);
-  const cached = Number(usage?.input_tokens_details?.cached_tokens ?? usage?.prompt_tokens_details?.cached_tokens ?? 0);
-  const output = Number(usage?.output_tokens ?? usage?.completion_tokens ?? 0);
+  const input = Number(usage?.prompt_tokens ?? usage?.input_tokens ?? 0);
+  const cached = Number(
+    usage?.prompt_tokens_details?.cached_tokens ??
+    usage?.input_tokens_details?.cached_tokens ??
+    0
+  );
+  const output = Number(usage?.completion_tokens ?? usage?.output_tokens ?? 0);
   const nonCached = Math.max(0, input - cached);
   return (nonCached * pricing.input + cached * pricing.cachedInput + output * pricing.output) / 1_000_000;
 }
@@ -136,45 +145,50 @@ export async function runEditorialScan(payload) {
   }));
 
   const model = process.env.OPENROUTER_MODEL || "openai/gpt-5-mini";
-  const apiResponse = await fetch("https://openrouter.ai/api/v1/responses", {
+  const apiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
       "HTTP-Referer": "http://localhost:8787",
-      "X-Title": "TypeBlock Editorial AI Lab",
-      "X-OpenRouter-Metadata": "enabled"
+      "X-Title": "TypeBlock Editorial AI Lab"
     },
     body: JSON.stringify({
       model,
-      store: false,
-      instructions,
-      input: JSON.stringify({ schemaVersion: 1, items: sanitizedItems }),
-      provider: { require_parameters: true },
-      text: {
-        format: {
-          type: "json_schema",
+      messages: [
+        { role: "system", content: instructions },
+        {
+          role: "user",
+          content: JSON.stringify({ schemaVersion: 1, items: sanitizedItems })
+        }
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
           name: "typeblock_editorial_scan",
-          description: "Shallow editorial relationship metadata for TypeBlock layout.",
           strict: true,
           schema
         }
       },
-      max_output_tokens: Math.max(600, Math.min(6000, items.length * 120))
+      provider: { require_parameters: true },
+      max_tokens: Math.max(600, Math.min(6000, items.length * 120)),
+      stream: false
     })
   });
 
   const responseBody = await apiResponse.json();
-  if (!apiResponse.ok) {
+
+  if (!apiResponse.ok || responseBody?.error) {
     const message = responseBody?.error?.message || `OpenRouter request failed with HTTP ${apiResponse.status}`;
     const err = new Error(message);
-    err.statusCode = apiResponse.status;
+    err.statusCode = apiResponse.ok ? 502 : apiResponse.status;
     throw err;
   }
 
-  const outputText = extractOutputText(responseBody);
+  const outputText = extractChatContent(responseBody);
   if (!outputText) {
-    const err = new Error("OpenRouter returned no structured output text.");
+    const finishReason = responseBody?.choices?.[0]?.finish_reason || "unknown";
+    const err = new Error(`OpenRouter returned no structured output text (finish_reason: ${finishReason}).`);
     err.statusCode = 502;
     throw err;
   }
@@ -183,7 +197,7 @@ export async function runEditorialScan(payload) {
   try {
     parsed = JSON.parse(outputText);
   } catch {
-    const err = new Error("OpenRouter returned output that could not be parsed as JSON.");
+    const err = new Error("OpenRouter returned structured output that could not be parsed as JSON.");
     err.statusCode = 502;
     throw err;
   }
@@ -198,17 +212,22 @@ export async function runEditorialScan(payload) {
 
   const pricing = configuredPricing();
   const reportedCost = Number(responseBody?.usage?.cost);
-  const cost = Number.isFinite(reportedCost) ? reportedCost : fallbackUsageCost(responseBody.usage, pricing);
+  const cost = Number.isFinite(reportedCost)
+    ? reportedCost
+    : fallbackUsageCost(responseBody.usage, pricing);
 
   return {
     schemaVersion: 1,
     provider: "openrouter",
+    transport: "chat_completions_structured_output",
     model: responseBody.model || model,
     analyses,
     usage: responseBody.usage || {},
     cost: {
       usd: cost,
-      method: Number.isFinite(reportedCost) ? "openrouter_reported_usage_cost" : "actual_tokens_x_configured_pricing",
+      method: Number.isFinite(reportedCost)
+        ? "openrouter_reported_usage_cost"
+        : "actual_tokens_x_configured_pricing",
       pricingSnapshot: {
         perMillionInputUSD: pricing.input,
         perMillionCachedInputUSD: pricing.cachedInput,
