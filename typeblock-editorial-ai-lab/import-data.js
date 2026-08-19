@@ -44,7 +44,7 @@
   function escapeDatasetBody(text) {
     return text
       .replace(/^---\s*$/gm, '———')
-      .replace(/^@(source|cue)\b/gim, '＠$1');
+      .replace(/^@(source|cue|entry-id)\b/gim, '＠$1');
   }
 
   function stableLatest(records) {
@@ -75,7 +75,6 @@
         return;
       }
 
-      // Fudebam tombstones and merged source records are not active Layout Entries.
       const isHidden = Boolean(record.hiddenAt);
       const isMerged = Boolean(record.mergedIntoEntryID);
       if (isHidden) stats.hidden += 1;
@@ -105,6 +104,7 @@
         timestamp,
         sourceIndex,
         captureOrigin,
+        documentDigest: String(record.documentDigest || ''),
         provenance: captureOrigin === 'authored' ? 'authored' : 'collected'
       });
     });
@@ -200,6 +200,7 @@
         timestamp,
         sourceIndex,
         captureOrigin: null,
+        documentDigest: '',
         provenance: genericProvenanceFrom(record)
       });
     });
@@ -234,7 +235,9 @@
 
   function toDatasetText(records) {
     return records.map(record => (
-      `@source ${record.provenance}\n${escapeDatasetBody(record.text)}`
+      `@entry-id ${encodeURIComponent(record.externalId)}\n` +
+      `@source ${record.provenance}\n` +
+      escapeDatasetBody(record.text)
     )).join('\n---\n');
   }
 
@@ -281,6 +284,22 @@
     return parts.length ? ` Excluded: ${parts.join('; ')}.` : '';
   }
 
+  function resetRuntime(datasetText) {
+    document.getElementById('src').value = datasetText;
+    entries = [];
+    candidates = [];
+    previous = new Map();
+    focus = null;
+    lastUsage = null;
+    EditorialPersistence?.installParseAdapter?.();
+    applyText(false);
+  }
+
+  function restoreSummary(result) {
+    if (!result) return '0 restored';
+    return `${result.restored} restored, ${result.stale} stale, ${result.missing} missing`;
+  }
+
   async function importFile(file) {
     if (!file) return;
     if (file.size > MAX_FILE_BYTES) throw new Error('File is larger than 50 MB.');
@@ -294,19 +313,30 @@
     }
 
     const result = normalizeRecords(json);
-    document.getElementById('src').value = toDatasetText(result.latest);
+    const datasetText = toDatasetText(result.latest);
+    resetRuntime(datasetText);
 
-    // Never carry metadata, billing, or placement state from the previous dataset.
-    entries = [];
-    candidates = [];
-    previous = new Map();
-    focus = null;
-    lastUsage = null;
-    applyText(false);
+    const formatLabel = result.format === 'fudebam' ? 'Fudebam export' : 'plain JSON array';
+    await EditorialPersistence?.detectBackendModel?.();
+    await EditorialPersistence?.saveCurrentDataset?.({
+      fileName: file.name,
+      datasetText,
+      importedAt: new Date().toISOString(),
+      selectedCount: result.latest.length,
+      format: result.format,
+      meta: {
+        total: result.total,
+        active: result.valid,
+        authored: result.selectedAuthored,
+        collected: result.selectedCollected
+      }
+    });
+    const restored = await EditorialPersistence?.restoreAnalyses?.(entries);
+    generate();
 
     const from = result.latest[0].timestamp;
     const to = result.latest[result.latest.length - 1].timestamp;
-    const formatLabel = result.format === 'fudebam' ? 'Fudebam export' : 'plain JSON array';
+    const storageWarning = EditorialPersistence?.getWarning?.();
 
     setDataStatus(
       `<strong>${escapeHTML(file.name)}</strong> — ${formatLabel}: ` +
@@ -315,13 +345,53 @@
       `Selected source identity: ${result.selectedAuthored} authored / ${result.selectedCollected} collected.` +
       exclusionSummary(result) +
       sidecarSummary(result) +
-      ` The file remains local; only these ${result.latest.length} Entry texts are sent after you click LIVE Analyze.`
+      ` Local cache: ${restoreSummary(restored)}.` +
+      (storageWarning ? ' IndexedDB is unavailable, so this session cannot be restored after a reload.' :
+        ' The selected dataset and Editorial Analysis are saved in this browser; the original export is not copied.') +
+      ` Only stale or missing Entry texts are sent after you click LIVE Analyze.`
     );
 
     setMode('live');
+    if (restored?.restored) {
+      setStatus(
+        `<strong>LIVE RESTORED</strong> — ${restored.restored} analyses loaded locally; ` +
+        `${restored.stale} stale and ${restored.missing} missing. No API call was made for restored Entries.`
+      );
+    } else {
+      setStatus(
+        `<strong>LIVE</strong> — ${result.latest.length} imported Entries are ready. ` +
+        `Click Analyze stale / missing to run OpenRouter.`
+      );
+    }
+  }
+
+  async function restorePreviousSession() {
+    EditorialPersistence?.installParseAdapter?.();
+    await EditorialPersistence?.detectBackendModel?.();
+    const saved = await EditorialPersistence?.loadCurrentDataset?.();
+
+    if (!saved?.datasetText) {
+      resetRuntime(document.getElementById('src').value || SAMPLE);
+      setMode('live');
+      setStatus('<strong>LIVE</strong> — no saved local dataset. Import a Fudebam JSON export or use the sample.');
+      return;
+    }
+
+    resetRuntime(saved.datasetText);
+    const restored = await EditorialPersistence?.restoreAnalyses?.(entries);
+    generate();
+    setMode('live');
+
+    setDataStatus(
+      `<strong>LOCAL RESTORE</strong> — ${escapeHTML(saved.fileName || 'Local dataset')}: ` +
+      `${entries.length} Entries restored from this browser. Imported ${escapeHTML(saved.importedAt || 'previously')}. ` +
+      `Analysis cache: ${restoreSummary(restored)}. Re-import the source JSON only when you want to refresh the latest 10 selection.`
+    );
+
     setStatus(
-      `<strong>LIVE</strong> — ${result.latest.length} imported Entries are ready. ` +
-      `Click Analyze stale / missing to run OpenRouter.`
+      `<strong>LIVE RESTORED</strong> — ${restored?.restored || 0} analyses loaded locally, ` +
+      `${restored?.stale || 0} stale, ${restored?.missing || 0} missing. ` +
+      `No API call or new cost was incurred during restoration.`
     );
   }
 
@@ -338,5 +408,9 @@
     }
   });
 
-  setMode('live');
+  restorePreviousSession().catch(error => {
+    console.warn('[TypeBlock restore]', error);
+    setMode('live');
+    setStatus(`<strong>RESTORE FAILED</strong> — ${escapeHTML(String(error.message || error))}`);
+  });
 })();
