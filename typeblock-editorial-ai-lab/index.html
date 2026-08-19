@@ -4,15 +4,22 @@
 <title>TypeBlock Editorial AI Lab</title>
 <link rel="stylesheet" href="style.css">
 <div class="app" id="app">
-<header class="head"><h1>TypeBlock<br>Editorial AI Lab</h1><small>content → editorial scan → local layout</small></header>
+<header class="head"><h1>TypeBlock<br>Editorial AI Lab</h1><small>local data → editorial scan → local layout</small></header>
 <aside class="side">
-  <section class="p"><h2>Dataset</h2><div class="ladder" id="ladder"></div><textarea id="src"></textarea><div class="row"><button id="apply">Apply text</button><button id="reset">Reset sample</button></div><p>Use <code>@source collected</code> or <code>@source authored</code>. Separate Entries with <code>---</code>.</p></section>
+  <section class="p"><h2>Dataset</h2>
+    <div class="row"><input id="dataFile" type="file" accept=".json,application/json"><a href="data-template.json" download>JSON template</a></div>
+    <div class="status" id="dataStatus"><strong>SAMPLE</strong> — choose a JSON export to select its latest 10 valid Entries locally.</div>
+    <div class="ladder" id="ladder"></div>
+    <textarea id="src"></textarea>
+    <div class="row"><button id="apply">Apply text</button><button id="reset">Reset sample</button></div>
+    <p>JSON accepts either an array or <code>{"entries": [...]}</code>. Each record needs text and <code>createdAt</code>. The newest 10 are selected, then placed oldest → newest to preserve reading order.</p>
+  </section>
   <section class="p"><h2>Editorial analysis</h2>
-    <div class="mode"><button data-mode="off">OFF</button><button data-mode="mock" class="on">MOCK</button><button data-mode="live">LIVE</button></div>
+    <div class="mode"><button data-mode="off">OFF</button><button data-mode="live" class="on">LIVE</button></div>
     <div class="row"><button id="analyze" class="primary">Analyze stale / missing</button><button id="clearAnalysis">Clear</button></div>
-    <input class="endpoint hidden" id="endpoint" value="/api/editorial-scan" aria-label="Live endpoint">
-    <div class="status" id="analysisStatus"><strong>MOCK</strong> — local deterministic editorial scan. No API call.</div>
-    <div class="pricing">MOCK estimate: <code>gpt-5-mini</code> baseline · LIVE: OpenRouter-reported usage/cost when available</div>
+    <input class="endpoint" id="endpoint" value="/api/editorial-scan" aria-label="Live endpoint">
+    <div class="status" id="analysisStatus"><strong>LIVE</strong> — analysis runs only after you click Analyze. The API key stays in the local backend.</div>
+    <div class="pricing">LIVE: OpenRouter-reported token usage and cost when available.</div>
   </section>
   <section class="p"><h2>Cost ledger</h2><div class="kv" id="costLedger"></div></section>
   <section class="p"><h2>Editorial inspector</h2><div class="editorial-card" id="editorialInspector">Click a block.</div></section>
@@ -26,3 +33,4 @@
 <script src="provider-openrouter.js"></script>
 <script src="solver.js"></script>
 <script src="ui.js"></script>
+<script src="import-data.js"></script>
