@@ -7,6 +7,7 @@ const files = [
   "core.js",
   "layout-profile.js",
   "text-metrics.js",
+  "projection-metrics.js",
   "provider-openrouter.js",
   "solver-phrase-model.js",
   "typography-layout-adapter.js",
@@ -15,9 +16,12 @@ const files = [
   "ui.js",
   "typography-ui.js",
   "persistence.js",
+  "editorial-projection.js",
+  "projection-ui.js",
   "import-data.js",
   "server.mjs",
-  "api/editorial-scan.mjs"
+  "api/editorial-scan.mjs",
+  "api/editorial-projection.mjs"
 ];
 
 let failed = false;
