@@ -73,44 +73,39 @@ Rules:
 - Do not output prose outside the JSON schema.`;
 
 function extractOutputText(response) {
+  if (typeof response.output_text === "string" && response.output_text) return response.output_text;
   for (const item of response.output || []) {
     if (item.type !== "message") continue;
     for (const content of item.content || []) {
-      if (content.type === "output_text" && typeof content.text === "string") {
-        return content.text;
-      }
+      if (content.type === "output_text" && typeof content.text === "string") return content.text;
     }
   }
   return "";
 }
 
-function pricingFromEnv() {
+function configuredPricing() {
   const num = (name, fallback) => {
     const value = Number(process.env[name]);
     return Number.isFinite(value) ? value : fallback;
   };
   return {
-    input: num("OPENAI_INPUT_PRICE_PER_M", 0.25),
-    cachedInput: num("OPENAI_CACHED_INPUT_PRICE_PER_M", 0.025),
-    output: num("OPENAI_OUTPUT_PRICE_PER_M", 2.0)
+    input: num("OPENROUTER_INPUT_PRICE_PER_M", 0.25),
+    cachedInput: num("OPENROUTER_CACHED_INPUT_PRICE_PER_M", 0.025),
+    output: num("OPENROUTER_OUTPUT_PRICE_PER_M", 2.0)
   };
 }
 
-function usageCost(usage, pricing) {
-  const input = Number(usage?.input_tokens || 0);
-  const cached = Number(usage?.input_tokens_details?.cached_tokens || 0);
-  const output = Number(usage?.output_tokens || 0);
+function fallbackUsageCost(usage, pricing) {
+  const input = Number(usage?.input_tokens ?? usage?.prompt_tokens ?? 0);
+  const cached = Number(usage?.input_tokens_details?.cached_tokens ?? usage?.prompt_tokens_details?.cached_tokens ?? 0);
+  const output = Number(usage?.output_tokens ?? usage?.completion_tokens ?? 0);
   const nonCached = Math.max(0, input - cached);
-  return (
-    nonCached * pricing.input +
-    cached * pricing.cachedInput +
-    output * pricing.output
-  ) / 1_000_000;
+  return (nonCached * pricing.input + cached * pricing.cachedInput + output * pricing.output) / 1_000_000;
 }
 
 export async function runEditorialScan(payload) {
-  if (!process.env.OPENAI_API_KEY) {
-    const err = new Error("OPENAI_API_KEY is missing. Copy .env.example to .env and add your key.");
+  if (!process.env.OPENROUTER_API_KEY) {
+    const err = new Error("OPENROUTER_API_KEY is missing. Add it to .env and restart the server.");
     err.statusCode = 500;
     throw err;
   }
@@ -140,18 +135,22 @@ export async function runEditorialScan(payload) {
       : null
   }));
 
-  const model = process.env.OPENAI_MODEL || "gpt-5-mini";
-  const apiResponse = await fetch("https://api.openai.com/v1/responses", {
+  const model = process.env.OPENROUTER_MODEL || "openai/gpt-5-mini";
+  const apiResponse = await fetch("https://openrouter.ai/api/v1/responses", {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+      authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      "HTTP-Referer": "http://localhost:8787",
+      "X-Title": "TypeBlock Editorial AI Lab",
+      "X-OpenRouter-Metadata": "enabled"
     },
     body: JSON.stringify({
       model,
       store: false,
       instructions,
       input: JSON.stringify({ schemaVersion: 1, items: sanitizedItems }),
+      provider: { require_parameters: true },
       text: {
         format: {
           type: "json_schema",
@@ -167,7 +166,7 @@ export async function runEditorialScan(payload) {
 
   const responseBody = await apiResponse.json();
   if (!apiResponse.ok) {
-    const message = responseBody?.error?.message || `OpenAI request failed with HTTP ${apiResponse.status}`;
+    const message = responseBody?.error?.message || `OpenRouter request failed with HTTP ${apiResponse.status}`;
     const err = new Error(message);
     err.statusCode = apiResponse.status;
     throw err;
@@ -175,7 +174,7 @@ export async function runEditorialScan(payload) {
 
   const outputText = extractOutputText(responseBody);
   if (!outputText) {
-    const err = new Error("OpenAI returned no structured output text.");
+    const err = new Error("OpenRouter returned no structured output text.");
     err.statusCode = 502;
     throw err;
   }
@@ -184,7 +183,7 @@ export async function runEditorialScan(payload) {
   try {
     parsed = JSON.parse(outputText);
   } catch {
-    const err = new Error("OpenAI returned structured output that could not be parsed as JSON.");
+    const err = new Error("OpenRouter returned output that could not be parsed as JSON.");
     err.statusCode = 502;
     throw err;
   }
@@ -197,23 +196,25 @@ export async function runEditorialScan(payload) {
     throw err;
   }
 
-  const pricing = pricingFromEnv();
-  const cost = usageCost(responseBody.usage, pricing);
+  const pricing = configuredPricing();
+  const reportedCost = Number(responseBody?.usage?.cost);
+  const cost = Number.isFinite(reportedCost) ? reportedCost : fallbackUsageCost(responseBody.usage, pricing);
 
   return {
     schemaVersion: 1,
+    provider: "openrouter",
     model: responseBody.model || model,
     analyses,
     usage: responseBody.usage || {},
     cost: {
       usd: cost,
-      method: "actual_tokens_x_configured_pricing",
+      method: Number.isFinite(reportedCost) ? "openrouter_reported_usage_cost" : "actual_tokens_x_configured_pricing",
       pricingSnapshot: {
         perMillionInputUSD: pricing.input,
         perMillionCachedInputUSD: pricing.cachedInput,
         perMillionOutputUSD: pricing.output
       }
     },
-    requestId: apiResponse.headers.get("x-request-id") || null
+    requestId: responseBody.id || apiResponse.headers.get("x-request-id") || null
   };
 }
