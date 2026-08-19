@@ -58,8 +58,9 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/api/health") {
       return sendJson(res, 200, {
         ok: true,
-        model: process.env.OPENAI_MODEL || "gpt-5-mini",
-        hasKey: Boolean(process.env.OPENAI_API_KEY)
+        provider: "openrouter",
+        model: process.env.OPENROUTER_MODEL || "openai/gpt-5-mini",
+        hasKey: Boolean(process.env.OPENROUTER_API_KEY)
       });
     }
 
@@ -101,6 +102,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`TypeBlock Editorial AI Lab: http://localhost:${PORT}`);
   console.log(`LIVE endpoint: http://localhost:${PORT}/api/editorial-scan`);
-  console.log(`OpenAI model: ${process.env.OPENAI_MODEL || "gpt-5-mini"}`);
-  console.log(`API key loaded: ${process.env.OPENAI_API_KEY ? "yes" : "NO — create .env first"}`);
+  console.log(`OpenRouter model: ${process.env.OPENROUTER_MODEL || "openai/gpt-5-mini"}`);
+  console.log(`OpenRouter key loaded: ${process.env.OPENROUTER_API_KEY ? "yes" : "NO — add OPENROUTER_API_KEY to .env"}`);
 });
