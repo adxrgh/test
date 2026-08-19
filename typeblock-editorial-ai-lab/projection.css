@@ -80,9 +80,7 @@
   margin-top: 8px;
 }
 
-@media (max-width: 780px) {
-  .article-title {
-    font-size: var(--tb-type-title-mobile-size);
-    line-height: var(--tb-type-title-mobile-line);
-  }
+.app.profile-mobile .article-title {
+  font-size: var(--tb-type-title-mobile-size);
+  line-height: var(--tb-type-title-mobile-line);
 }
