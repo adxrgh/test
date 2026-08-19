@@ -1,4 +1,4 @@
-function phraseTemplates(group,phraseId){
+function desktopPhraseTemplates(group,phraseId){
   let groupEntries=entries.slice(group.start,group.end),n=groupEntries.length,out=[],push=template=>{if(template)out.push(template)};
   if(n===1){
     let e=groupEntries[0],spans=e.target>125?[5,6,4]:e.target<42?[3,4,5]:[4,5,3];
@@ -42,6 +42,97 @@ function phraseTemplates(group,phraseId){
   return out.sort((a,b)=>a.cost-b.cost).slice(0,12)
 }
 
+function mobileShort(entry){return layoutMinSpan(entry)<=3&&entry.chars<=340}
+
+function mobileStackSpan(entry,index,wideFirst=true){
+  let min=layoutMinSpan(entry),wide=index%2===0?wideFirst:!wideFirst,span;
+  if(min>=5)span=wide?6:5;
+  else if(min===4)span=wide?5:4;
+  else span=wide?4:3;
+  return clamp(Math.max(min,span),3,6)
+}
+
+function mobileSequentialSpecs(groupEntries,mirror=false,wideFirst=true){
+  let row=0;
+  return groupEntries.map((entry,index)=>{
+    let span=mobileStackSpan(entry,index,wideFirst),right=(index%2===1)!==mirror,x=span===6?0:(right?C-span:0),spec={x,row,span};
+    row+=rowsFor(entry,span)+3;
+    return spec
+  })
+}
+
+function mobilePhraseTemplates(group,phraseId){
+  let groupEntries=entries.slice(group.start,group.end),n=groupEntries.length,out=[],push=template=>{if(template)out.push(template)};
+
+  if(n===1){
+    let entry=groupEntries[0],min=layoutMinSpan(entry),spans=min>=5?[6,5]:min===4?[5,4,6]:[4,3,5];
+    spans.forEach((span,index)=>{
+      push(finishTemplate(`mobile-solo-${span}-left`,phraseId,groupEntries,[{x:0,row:0,span}],index*1.5));
+      if(span<6)push(finishTemplate(`mobile-solo-${span}-right`,phraseId,groupEntries,[{x:C-span,row:0,span}],index*1.5+.5))
+    })
+  }
+
+  if(n===2){
+    let a=groupEntries[0],b=groupEntries[1],shortA=mobileShort(a),shortB=mobileShort(b);
+    if(shortA&&shortB){
+      let stagger=Math.max(2,Math.min(5,Math.round(Math.min(rowsFor(a,3),rowsFor(b,3))*.16)));
+      push(finishTemplate('mobile-pair-3-3',phraseId,groupEntries,[{x:0,row:0,span:3},{x:3,row:0,span:3}],0));
+      push(finishTemplate('mobile-pair-3-3-stagger',phraseId,groupEntries,[{x:0,row:0,span:3},{x:3,row:stagger,span:3}],1));
+      push(finishTemplate('mobile-pair-3-3-stagger-mirror',phraseId,groupEntries,[{x:3,row:0,span:3},{x:0,row:stagger,span:3}],2))
+    }
+    push(finishTemplate('mobile-stack-wide-left',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,false,true),0));
+    push(finishTemplate('mobile-stack-wide-right',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,true,true),.5));
+    push(finishTemplate('mobile-stack-offset-left',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,false,false),1.5));
+    push(finishTemplate('mobile-stack-offset-right',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,true,false),2))
+  }
+
+  if(n===3){
+    let short=groupEntries.map(mobileShort);
+    push(finishTemplate('mobile-zigzag-3-left',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,false,true),1));
+    push(finishTemplate('mobile-zigzag-3-right',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,true,true),1.5));
+    push(finishTemplate('mobile-zigzag-3-narrow-left',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,false,false),2));
+    push(finishTemplate('mobile-zigzag-3-narrow-right',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,true,false),2.5));
+
+    if(short[0]&&short[1]){
+      let pairBottom=Math.max(rowsFor(groupEntries[0],3),rowsFor(groupEntries[1],3)),thirdSpan=Math.max(layoutMinSpan(groupEntries[2]),layoutMinSpan(groupEntries[2])>=5?6:5);
+      push(finishTemplate('mobile-pair-then-wide-left',phraseId,groupEntries,[{x:0,row:0,span:3},{x:3,row:0,span:3},{x:0,row:pairBottom+3,span:thirdSpan}],0));
+      push(finishTemplate('mobile-pair-then-wide-right',phraseId,groupEntries,[{x:0,row:0,span:3},{x:3,row:0,span:3},{x:C-thirdSpan,row:pairBottom+3,span:thirdSpan}],.5))
+    }
+    if(short[1]&&short[2]){
+      let firstSpan=Math.max(layoutMinSpan(groupEntries[0]),layoutMinSpan(groupEntries[0])>=5?6:5),pairRow=rowsFor(groupEntries[0],firstSpan)+3;
+      push(finishTemplate('mobile-wide-then-pair-left',phraseId,groupEntries,[{x:0,row:0,span:firstSpan},{x:0,row:pairRow,span:3},{x:3,row:pairRow,span:3}],0));
+      push(finishTemplate('mobile-wide-then-pair-right',phraseId,groupEntries,[{x:C-firstSpan,row:0,span:firstSpan},{x:0,row:pairRow,span:3},{x:3,row:pairRow,span:3}],.5))
+    }
+  }
+
+  if(n===4){
+    let short=groupEntries.map(mobileShort);
+    push(finishTemplate('mobile-zigzag-4-left',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,false,true),1));
+    push(finishTemplate('mobile-zigzag-4-right',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,true,true),1.5));
+    push(finishTemplate('mobile-zigzag-4-narrow-left',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,false,false),2));
+    push(finishTemplate('mobile-zigzag-4-narrow-right',phraseId,groupEntries,mobileSequentialSpecs(groupEntries,true,false),2.5));
+
+    if(short.every(Boolean)){
+      let secondRow=Math.max(rowsFor(groupEntries[0],3),rowsFor(groupEntries[1],3))+3;
+      push(finishTemplate('mobile-quad-short-grid',phraseId,groupEntries,[{x:0,row:0,span:3},{x:3,row:0,span:3},{x:0,row:secondRow,span:3},{x:3,row:secondRow,span:3}],0))
+    }
+    if(short[1]&&short[2]){
+      let firstSpan=Math.max(layoutMinSpan(groupEntries[0]),layoutMinSpan(groupEntries[0])>=5?6:5),
+          pairRow=rowsFor(groupEntries[0],firstSpan)+3,
+          pairBottom=pairRow+Math.max(rowsFor(groupEntries[1],3),rowsFor(groupEntries[2],3)),
+          lastSpan=Math.max(layoutMinSpan(groupEntries[3]),layoutMinSpan(groupEntries[3])>=5?5:4);
+      push(finishTemplate('mobile-wide-pair-tail-left',phraseId,groupEntries,[{x:0,row:0,span:firstSpan},{x:0,row:pairRow,span:3},{x:3,row:pairRow,span:3},{x:0,row:pairBottom+3,span:lastSpan}],0));
+      push(finishTemplate('mobile-wide-pair-tail-right',phraseId,groupEntries,[{x:C-firstSpan,row:0,span:firstSpan},{x:0,row:pairRow,span:3},{x:3,row:pairRow,span:3},{x:C-lastSpan,row:pairBottom+3,span:lastSpan}],1))
+    }
+  }
+
+  return out.sort((a,b)=>a.cost-b.cost).slice(0,14)
+}
+
+function phraseTemplates(group,phraseId){
+  return isMobileLayout()?mobilePhraseTemplates(group,phraseId):desktopPhraseTemplates(group,phraseId)
+}
+
 function phraseAxisForPlacement(first){
   let center=first.x+first.span/2;
   if(first.x===0&&center<3)return'left';
@@ -69,8 +160,8 @@ function partialBalanceCost(ps){
   });
   let total=left+right;
   if(!total)return 0;
-  let imbalance=Math.abs(left-right)/total;
-  return imbalance>.18?(imbalance-.18)*58:0
+  let imbalance=Math.abs(left-right)/total,threshold=isMobileLayout()?.22:.18;
+  return imbalance>threshold?(imbalance-threshold)*(isMobileLayout()?48:58):0
 }
 
 function phraseContextCost(template,state,startBoundary){
@@ -87,15 +178,16 @@ function phraseContextCost(template,state,startBoundary){
 
 function phraseGapChoices(signal,isFirst){
   if(isFirst)return[0];
-  let base=Math.round(3+signal.breakStrength*8),values=[base-2,base,base+2].map(value=>clamp(value,2,13));
+  let base=Math.round((isMobileLayout()?2:3)+signal.breakStrength*(isMobileLayout()?6:8)),
+      values=[base-2,base,base+2].map(value=>clamp(value,2,isMobileLayout()?10:13));
   return[...new Set(values)]
 }
 
 function cheapStateScore(state){
   let count=Math.max(1,state.phrases.length),area=0,shape=0,editorial=0,move=0;
   state.ps.forEach((p,index)=>{
-    let e=entries[index];
-    area+=Math.abs(p.span*p.rows-e.target)/e.target*100;
+    let e=entries[index],target=layoutTargetFor(e);
+    area+=Math.abs(p.span*p.rows-target)/target*100;
     shape+=p.shape.intrinsic||0;
     editorial+=p.shape.editorial||0;
     move+=p.shape.stability||0
