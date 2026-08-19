@@ -8,11 +8,11 @@
 <aside class="side">
   <section class="p"><h2>Dataset</h2>
     <div class="row"><input id="dataFile" type="file" accept=".json,application/json"><a href="data-template.json" download>JSON template</a></div>
-    <div class="status" id="dataStatus"><strong>SAMPLE</strong> — choose a JSON export to select its latest 10 valid Entries locally.</div>
+    <div class="status" id="dataStatus"><strong>SAMPLE</strong> — choose a Fudebam JSON export to load its latest 10 active Entries locally.</div>
     <div class="ladder" id="ladder"></div>
     <textarea id="src"></textarea>
     <div class="row"><button id="apply">Apply text</button><button id="reset">Reset sample</button></div>
-    <p>JSON accepts either an array or <code>{"entries": [...]}</code>. Each record needs text and <code>createdAt</code>. The newest 10 are selected, then placed oldest → newest to preserve reading order.</p>
+    <p>Fudebam import reads only <code>entries[]</code>: <code>content</code>, <code>createdAt</code>, and <code>captureOrigin</code>. Records with <code>hiddenAt</code> or <code>mergedIntoEntryID</code> are excluded. Annotations, revisions, and AI review sessions remain sidecars rather than becoming Layout Entries. The newest 10 active Entries are selected, then placed oldest → newest.</p>
   </section>
   <section class="p"><h2>Editorial analysis</h2>
     <div class="mode"><button data-mode="off">OFF</button><button data-mode="live" class="on">LIVE</button></div>
