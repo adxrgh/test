@@ -4,6 +4,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runEditorialScan } from "./api/editorial-scan.mjs";
+import { runEditorialProjection } from "./api/editorial-projection.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
@@ -71,6 +72,13 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, result);
     }
 
+    if (url.pathname === "/api/editorial-projection") {
+      if (req.method !== "POST") return sendJson(res, 405, { error: "Method not allowed" });
+      const payload = await readJson(req);
+      const result = await runEditorialProjection(payload);
+      return sendJson(res, 200, result);
+    }
+
     if (!["GET", "HEAD"].includes(req.method || "GET")) {
       return sendJson(res, 405, { error: "Method not allowed" });
     }
@@ -101,7 +109,8 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`TypeBlock Editorial AI Lab: http://localhost:${PORT}`);
-  console.log(`LIVE endpoint: http://localhost:${PORT}/api/editorial-scan`);
+  console.log(`Editorial scan: http://localhost:${PORT}/api/editorial-scan`);
+  console.log(`Editorial projection: http://localhost:${PORT}/api/editorial-projection`);
   console.log(`OpenRouter model: ${process.env.OPENROUTER_MODEL || "openai/gpt-5-mini"}`);
   console.log(`OpenRouter key loaded: ${process.env.OPENROUTER_API_KEY ? "yes" : "NO — add OPENROUTER_API_KEY to .env"}`);
 });
