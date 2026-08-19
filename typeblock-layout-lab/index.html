@@ -5,65 +5,425 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>TypeBlock Layout Lab</title>
 <style>
-:root{--bg:#ecece7;--paper:#fbfbf7;--ink:#11110f;--muted:#77776f;--line:#c8c8c0;--signal:#ff4b00}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}button,textarea,input,select{font:inherit;color:inherit}
-.app{max-width:1040px;margin:auto;padding:18px}.head{display:flex;justify-content:space-between;align-items:end;border-bottom:4px solid var(--ink);padding:8px 0 14px;margin-bottom:18px}.head h1{margin:0;font-size:30px;line-height:.9;letter-spacing:-.05em}.head small{color:var(--muted);letter-spacing:.08em}.controls{display:grid;gap:14px;margin-bottom:18px}.panel{border-top:1px solid var(--ink);padding-top:12px}.panel h2{font-size:12px;margin:0 0 8px;letter-spacing:.04em}
-textarea{width:100%;min-height:220px;border:1px solid var(--ink);border-radius:0;background:#fff;padding:10px;font-size:12px;line-height:1.45}.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:9px}.row button{border:0;border-bottom:1px solid;background:none;padding:3px 0;font-weight:700}.row button:active{color:var(--signal)}
-.weights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}.w{display:grid;grid-template-columns:1fr 95px 28px;gap:7px;align-items:center;font-size:11px}.w input{width:100%}.w output{text-align:right;font-weight:800}.options{display:flex;flex-wrap:wrap;gap:12px 18px;font-size:12px}.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.ladder div{border-top:1px solid var(--line);padding-top:5px;font-size:9px;color:var(--muted)}.ladder b{display:block;color:var(--ink);font-size:11px}
-.stage{background:var(--paper);border:1px solid var(--ink);position:relative;overflow:hidden}.stagehead{position:sticky;top:0;z-index:20;background:rgba(251,251,247,.96);border-bottom:1px solid var(--ink);padding:12px 14px;display:flex;justify-content:space-between}.stagehead b{letter-spacing:.04em}.stagehead span{font-size:10px;color:var(--muted)}
-#layout{position:relative;min-height:900px;padding:18px 0 56px;background-image:linear-gradient(to bottom,transparent 7px,rgba(17,17,15,.045) 8px);background-size:100% 8px}.grid{position:absolute;inset:18px 0 56px;display:grid;grid-template-columns:repeat(6,1fr);gap:12px;pointer-events:none;opacity:0}.showgrid .grid{opacity:1}.grid i{border-left:1px solid rgba(255,75,0,.2)}
-.block{position:absolute;padding:8px 10px 6px;overflow:hidden}.content{position:relative;z-index:2;height:100%;display:flex;flex-direction:column}.meta{font-size:8px;line-height:1.3;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;flex:0 0 auto}.meta strong{color:var(--signal);font-weight:800}.body{font-size:14px;line-height:1.48;font-weight:560;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;flex:0 0 auto}.cue{font-size:11px;line-height:1.42;font-style:italic;color:#555;margin-top:7px;flex:0 0 auto}.seq{position:absolute;left:0;bottom:0;font-size:62px;line-height:.72;font-weight:800;letter-spacing:-.07em;color:rgba(17,17,15,.09);pointer-events:none;z-index:0}.debug .block{outline:1px solid rgba(255,75,0,.42)}
-.candidates{display:flex;gap:8px;overflow:auto;padding:12px 0}.candidate{flex:0 0 auto;border:1px solid var(--line);background:transparent;padding:8px 10px;font-size:11px}.candidate.active{border-color:var(--signal);color:var(--signal)}.stats{font-size:11px;color:var(--muted);white-space:pre-wrap;border-top:1px solid var(--line);padding-top:10px}.hint{font-size:11px;color:var(--muted);line-height:1.5}
-@media(min-width:760px){.app{display:grid;grid-template-columns:320px 1fr;gap:24px}.head{grid-column:1/-1}.controls{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 40px);overflow:auto}.weights{grid-template-columns:1fr}.stage{min-height:calc(100vh - 110px)}}
-@media(max-width:759px){.app{padding:12px}.head h1{font-size:26px}.controls{order:2}.stage{order:1}.weights{grid-template-columns:1fr}.body{font-size:14px}.ladder{grid-template-columns:repeat(2,1fr)}}
+:root{
+  --bg:#ecece7;--paper:#fbfbf7;--ink:#11110f;--muted:#77776f;--line:#c8c8c0;
+  --signal:#ff4b00;--baseline:8px;--gutter:12px
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+button,textarea,input,select{font:inherit;color:inherit}
+.app{max-width:1080px;margin:auto;padding:18px}
+.head{display:flex;justify-content:space-between;align-items:end;border-bottom:4px solid var(--ink);padding:8px 0 14px;margin-bottom:18px}
+.head h1{margin:0;font-size:30px;line-height:.9;letter-spacing:-.055em}
+.head small{color:var(--muted);letter-spacing:.08em}
+.controls{display:grid;gap:14px;margin-bottom:18px}
+.panel{border-top:1px solid var(--ink);padding-top:12px}
+.panel h2{font-size:12px;margin:0 0 8px;letter-spacing:.04em}
+textarea{width:100%;min-height:220px;border:1px solid var(--ink);border-radius:0;background:#fff;padding:10px;font-size:12px;line-height:1.45}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:9px}
+.row button{border:0;border-bottom:1px solid;background:none;padding:3px 0;font-weight:700}
+.row button:active{color:var(--signal)}
+.weights{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 16px}
+.w{display:grid;grid-template-columns:1fr 95px 28px;gap:7px;align-items:center;font-size:11px}
+.w input{width:100%}.w output{text-align:right;font-weight:800}
+.options{display:flex;flex-wrap:wrap;gap:12px 18px;font-size:12px}
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ladder div{border-top:1px solid var(--line);padding-top:5px;font-size:9px;color:var(--muted)}
+.ladder b{display:block;color:var(--ink);font-size:11px}
+.hint{font-size:11px;color:var(--muted);line-height:1.5}
+.stage{background:var(--paper);border:1px solid var(--ink);position:relative;overflow:hidden}
+.stagehead{position:sticky;top:0;z-index:20;background:rgba(251,251,247,.96);border-bottom:1px solid var(--ink);padding:12px 14px;display:flex;justify-content:space-between}
+.stagehead b{letter-spacing:.04em}.stagehead span{font-size:10px;color:var(--muted)}
+#layout{
+  position:relative;min-height:900px;padding:18px 0 56px;
+  background-image:linear-gradient(to bottom,transparent 7px,rgba(17,17,15,.035) 8px);
+  background-size:100% 8px
+}
+.grid{position:absolute;inset:18px 0 56px;display:grid;grid-template-columns:repeat(6,1fr);gap:var(--gutter);pointer-events:none;opacity:0}
+.showgrid .grid{opacity:1}.grid i{border-left:1px solid rgba(255,75,0,.2)}
+.block{position:absolute;padding:8px 10px 7px;overflow:hidden}
+.content{position:relative;z-index:2;height:100%;display:flex;flex-direction:column}
+.meta{font-size:8px;line-height:1.3;letter-spacing:.08em;color:var(--muted);margin-bottom:6px;flex:0 0 auto}
+.meta strong{color:var(--signal);font-weight:800}
+.body{font-size:13.5px;line-height:1.48;font-weight:560;display:-webkit-box;-webkit-box-orient:vertical;overflow:hidden;flex:0 0 auto;letter-spacing:-.006em}
+.block.dominant .body{font-size:18px;line-height:1.34;font-weight:760;letter-spacing:-.022em}
+.block.dominant .seq{font-size:78px}
+.cue{font-size:11px;line-height:1.42;font-style:italic;color:#555;margin-top:7px;flex:0 0 auto}
+.seq{position:absolute;left:0;bottom:0;font-size:62px;line-height:.72;font-weight:800;letter-spacing:-.07em;color:rgba(17,17,15,.09);pointer-events:none;z-index:0}
+.debug .block{outline:1px solid rgba(255,75,0,.42)}
+.clean .meta{display:none}
+.clean .stats{display:none}
+.clean .stagehead span{opacity:.28}
+.clean .block{padding-top:10px}
+.candidates{display:flex;gap:8px;overflow:auto;padding:12px 0}
+.candidate{flex:0 0 auto;border:1px solid var(--line);background:transparent;padding:8px 10px;font-size:11px}
+.candidate.active{border-color:var(--signal);color:var(--signal)}
+.stats{font-size:11px;color:var(--muted);white-space:pre-wrap;border-top:1px solid var(--line);padding-top:10px}
+@media(min-width:760px){
+  .app{display:grid;grid-template-columns:330px 1fr;gap:24px}
+  .head{grid-column:1/-1}
+  .controls{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 40px);overflow:auto}
+  .weights{grid-template-columns:1fr}
+  .stage{min-height:calc(100vh - 110px)}
+}
+@media(max-width:759px){
+  .app{padding:12px}.head h1{font-size:26px}.controls{order:2}.stagewrap{order:1}
+  .weights{grid-template-columns:1fr}.ladder{grid-template-columns:repeat(2,1fr)}
+  .body{font-size:13px}.block.dominant .body{font-size:17px}
+}
 </style>
 </head>
 <body>
-<main class="app">
-<header class="head"><h1>TypeBlock<br>Layout Lab</h1><small>6-column / area conserved / presence filled</small></header>
+<main class="app" id="app">
+<header class="head">
+  <h1>TypeBlock<br>Layout Lab</h1>
+  <small>6-column / viewport composition</small>
+</header>
+
 <section class="controls">
   <div class="panel"><h2>Article size ladder</h2><div class="ladder" id="ladder"></div></div>
-  <div class="panel"><h2>Content</h2><textarea id="src"></textarea><div class="row"><button id="apply">Apply</button><button id="random">Random</button><button id="reset">Reset</button></div><p class="hint">Default articles contain real text at very different lengths. Territory area controls how much source text is visibly projected. Structural whitespace exists between blocks, not as unexplained empty space inside them.</p></div>
+  <div class="panel">
+    <h2>Content</h2>
+    <textarea id="src"></textarea>
+    <div class="row"><button id="apply">Apply</button><button id="random">Random</button><button id="reset">Reset</button></div>
+    <p class="hint">The solver now scores each viewport as a composition: one dominant block, one or two supports, a small set of shared axes, and one coherent whitespace field.</p>
+  </div>
   <div class="panel"><h2>Weights</h2><div class="weights" id="weights"></div></div>
-  <div class="panel"><h2>Options</h2><div class="options"><label><input id="full" type="checkbox" checked> allow 6-col</label><label><input id="grid" type="checkbox"> grid</label><label><input id="debug" type="checkbox"> bounds</label><label>candidates <select id="count"><option>4</option><option selected>8</option><option>12</option></select></label></div></div>
+  <div class="panel">
+    <h2>Options</h2>
+    <div class="options">
+      <label><input id="full" type="checkbox" checked> allow 6-col</label>
+      <label><input id="clean" type="checkbox" checked> clean preview</label>
+      <label><input id="grid" type="checkbox"> grid</label>
+      <label><input id="debug" type="checkbox"> bounds</label>
+      <label>candidates <select id="count"><option>4</option><option selected>8</option><option>12</option></select></label>
+    </div>
+  </div>
 </section>
-<section>
-  <div class="stage"><div class="stagehead"><b>Typeblock / Layout</b><span id="meta"></span></div><div id="layout"><div class="grid" id="gridlines"></div></div></div>
-  <div class="candidates" id="candidates"></div><div class="stats" id="stats"></div>
+
+<section class="stagewrap">
+  <div class="stage">
+    <div class="stagehead"><b>Typeblock / Layout</b><span id="meta"></span></div>
+    <div id="layout"><div class="grid" id="gridlines"></div></div>
+  </div>
+  <div class="candidates" id="candidates"></div>
+  <div class="stats" id="stats"></div>
 </section>
 </main>
+
 <script>
 (()=>{'use strict';
-const COLS=6,U=8,G=12;
+
+const COLS=6, U=8, G=12, BAND=64, BAND_STEP=48;
+const LENGTHS=[60,180,420,900,1800,3600,7200,12000];
 const TOPICS=[
-  'Spatial position becomes part of memory when a layout remains stable enough to be learned. The user should be able to remember that a passage lived near the lower left or beside a dense article, even before recalling its exact words.',
+  'Spatial position becomes part of memory when a layout remains stable enough to be learned. The reader can often recall that a passage lived near the lower left or beside a dense article before recalling the exact words.',
   'Whitespace is pacing rather than waste. A complete open field can separate groups, emphasize a transition, or make a later block feel like a new beginning. Small accidental holes are noise; deliberate fields are structure.',
   'Sequence numbers separate reading order from placement. Because order is explicit, the composition can become asymmetric without becoming confusing. A later item does not need to sit directly beneath the previous one.',
-  'Processed traces should surface inside the source text. Highlights, notes, and requested AI explanations are cues anchored to the original material. They replace some ordinary projection text rather than becoming independent cards.',
-  'A Page begins with selection, arrangement, and writing. References retain their source identity while the reader creates a new composition. The page can therefore become highly edited without losing provenance.',
-  'Panorama changes density rather than identity. It compresses whitespace and ordinary text while preserving grouping, adjacency, order, and representative cues. Standard view shows the composition; panorama shows the path.',
+  'Processed traces should surface inside source text. Highlights, notes, and requested AI explanations are cues anchored to the original material. They replace some ordinary projection text rather than becoming independent cards.',
+  'A Page begins with selection, arrangement, and writing. References retain source identity while the reader creates a new composition. The page can become highly edited without losing provenance.',
+  'Panorama changes density rather than identity. It compresses whitespace and ordinary text while preserving grouping, adjacency, order, and representative cues. Standard view shows composition; panorama shows path.',
   'Area and shape are separate variables. Source length determines territory weight, while the solver chooses a legal width and height. A wide shallow block and a narrow tall block may represent the same amount of source material.',
   'Local reflow should preserve spatial memory. When one block changes size, the solver should move as little as possible, respect manual anchors, and avoid rebuilding the entire page from the top.'
 ];
-const LENGTHS=[60,180,420,900,1800,3600,7200,12000];
-function makeArticle(seed,target){let out='',i=0;while(out.length<target){const s=TOPICS[(seed+i)%TOPICS.length];const bridge=[' In practice, ',' This matters because ',' The consequence is that ',' Seen as a system, ',' For reading software, '][i%5];out+=(out?bridge:'')+s;i++}return out.slice(0,target).replace(/\s+$/,'')}
-function buildSample(){return LENGTHS.map((n,i)=>{let t=makeArticle(i,n);let extra='';if(i===2||i===6)extra='\n@cue '+(i===2?'Processing changes what becomes visible, not the source identity.':'Length determines territory; layout determines shape.');if(i===5)extra+='\n@pin right';return t+extra}).join('\n---\n')}
+
+function makeArticle(seed,target){
+  let out='',i=0;
+  const bridges=[' In practice, ',' This matters because ',' The consequence is that ',' Seen as a system, ',' For reading software, '];
+  while(out.length<target){out+=(out?bridges[i%bridges.length]:'')+TOPICS[(seed+i)%TOPICS.length];i++}
+  return out.slice(0,target).replace(/\s+$/,'');
+}
+function buildSample(){
+  return LENGTHS.map((n,i)=>{
+    let extra='';
+    if(i===2||i===6) extra='\n@cue '+(i===2?'Processing changes what becomes visible, not the source identity.':'Length determines territory; layout determines shape.');
+    if(i===5) extra+='\n@pin right';
+    return makeArticle(i,n)+extra;
+  }).join('\n---\n');
+}
 const SAMPLE=buildSample();
-const W={move:80,edge:48,fragment:38,line:35,balance:24,fullrun:44,area:85};let weights={...W},entries=[],cands=[],selected=0,previous=new Map();const $=id=>document.getElementById(id);$('src').value=SAMPLE;for(let i=0;i<COLS;i++)$('gridlines').appendChild(document.createElement('i'));
-function targetArea(chars){return Math.max(18,Math.min(170,Math.round(10+Math.sqrt(Math.max(1,chars))*1.46)))}
-function parse(t){return t.split(/\n\s*---\s*\n/).map((c,i)=>{let cue='',pin=null,b=[];c.trim().split(/\n/).forEach(x=>{if(/^@cue\s+/i.test(x))cue=x.replace(/^@cue\s+/i,'');else if(/^@pin\s+/i.test(x))pin=x.replace(/^@pin\s+/i,'').trim();else b.push(x)});let body=b.join(' ').trim();if(!body)return null;let chars=body.length,target=targetArea(chars);return{id:i+1,body,cue,pin,chars,target}}).filter(Boolean)}
+
+const W={
+  move:80,
+  area:85,
+  composition:78,
+  axes:64,
+  whitefield:68,
+  spanrhythm:46,
+  edge:38,
+  line:28,
+  balance:18,
+  fullrun:34
+};
+let weights={...W}, entries=[], cands=[], selected=0, previous=new Map();
+
+const $=id=>document.getElementById(id);
+$('src').value=SAMPLE;
+for(let i=0;i<COLS;i++) $('gridlines').appendChild(document.createElement('i'));
+
+function targetArea(chars){
+  return Math.max(18,Math.min(170,Math.round(10+Math.sqrt(Math.max(1,chars))*1.46)));
+}
+function parse(t){
+  return t.split(/\n\s*---\s*\n/).map((c,i)=>{
+    let cue='',pin=null,b=[];
+    c.trim().split(/\n/).forEach(x=>{
+      if(/^@cue\s+/i.test(x)) cue=x.replace(/^@cue\s+/i,'');
+      else if(/^@pin\s+/i.test(x)) pin=x.replace(/^@pin\s+/i,'').trim();
+      else b.push(x);
+    });
+    let body=b.join(' ').trim();
+    if(!body) return null;
+    return {id:i+1,body,cue,pin,chars:body.length,target:targetArea(body.length)};
+  }).filter(Boolean);
+}
 function rowsFor(e,span){return Math.max(4,Math.round(e.target/span))}
-function overlap(a,b){return !(a.x+a.span<=b.x||b.x+b.span<=a.x||a.row+a.rows<=b.row||b.row+b.rows<=a.row)}
-function placementsFor(e,state){let out=[];for(let span=2;span<=COLS;span++){if(span===6&&!$('full').checked)continue;let rows=rowsFor(e,span);for(let row=state.cursor;row<=state.cursor+20;row++)for(let x=0;x<=COLS-span;x++){let p={id:e.id,x,row,span,rows};if(state.ps.some(q=>overlap(p,q)))continue;if(e.pin==='left'&&x>1)continue;if(e.pin==='right'&&x+span<COLS-1)continue;out.push(p)}}return out.slice(0,42)}
-function metric(ps){let area=0,edge=0,line=0,balance=0,fullrun=0,move=0,mass=0,mx=0;ps.forEach((p,i)=>{let e=entries[i],actual=p.span*p.rows;area+=Math.abs(actual-e.target)/e.target*100;if(p.x!==0&&p.x+p.span!==COLS)edge+=24;let ideal=e.chars>7000?5:e.chars>3000?4.5:e.chars>1200?4:e.chars>500?3.5:e.chars>150?3:2.4;line+=Math.abs(p.span-ideal)*9;mass+=actual;mx+=(p.x+p.span/2)*actual;let prev=previous.get(p.id);if(prev)move+=(Math.abs(prev.x-p.x)*9+Math.abs(prev.row-p.row)*1.2+Math.abs(prev.span-p.span)*5)});for(let i=1;i<ps.length;i++)if(ps[i].span===6&&ps[i-1].span===6)fullrun+=35;balance=mass?Math.abs(mx/mass-3)*13:0;let maxRow=Math.max(...ps.map(p=>p.row+p.rows));let occupied=ps.reduce((s,p)=>s+p.span*p.rows,0),box=Math.max(1,maxRow*COLS),fragment=Math.max(0,(1-occupied/box)*28-5);return{area:area/ps.length,edge:edge/ps.length,line:line/ps.length,balance,fullrun,move:move/ps.length,fragment}}
-function score(m){let sw=0,s=0;Object.keys(W).forEach(k=>{sw+=weights[k];s+=m[k]*weights[k]});return s/sw}
-function generate(){let beam=[{i:0,cursor:0,ps:[]}],bw=80;while(beam.some(s=>s.i<entries.length)){let next=[];for(let st of beam){if(st.i>=entries.length){next.push(st);continue}let e=entries[st.i];for(let p of placementsFor(e,st)){let ps=[...st.ps,p],cursor=Math.max(st.cursor,p.row);next.push({i:st.i+1,cursor,ps})}}next.forEach(s=>{s.m=metric(s.ps);s.s=score(s.m)});next.sort((a,b)=>a.s-b.s);beam=next.slice(0,bw)}cands=beam.filter(s=>s.i===entries.length).sort((a,b)=>a.s-b.s).slice(0,+$('count').value);selected=0;render()}
-function renderLadder(){let h=$('ladder');h.innerHTML='';entries.forEach(e=>{let d=document.createElement('div');d.innerHTML=`<b>${String(e.id).padStart(2,'0')} · ${e.chars.toLocaleString()}</b>target ${e.target} cells`;h.appendChild(d)})}
-function render(){if(!cands.length)return;let c=cands[selected],L=$('layout');L.querySelectorAll('.block').forEach(n=>n.remove());L.classList.toggle('showgrid',$('grid').checked);L.classList.toggle('debug',$('debug').checked);let maxRow=Math.max(...c.ps.map(p=>p.row+p.rows))+6;L.style.height=(maxRow*U)+'px';c.ps.forEach((p,i)=>{let e=entries[i],actual=p.span*p.rows,delta=Math.round((actual-e.target)/e.target*100),d=document.createElement('article');d.className='block';d.style.left=`calc(${p.x/COLS*100}% + ${p.x?G/2:0}px)`;d.style.width=`calc(${p.span/COLS*100}% - ${p.x?G/2:0}px)`;d.style.top=(p.row*U)+'px';d.style.height=(p.rows*U)+'px';const blockPx=p.rows*U;const reserved=30+(e.cue?50:0);const linePx=21;let lines=Math.max(2,Math.floor((blockPx-reserved)/linePx));let capacityHint=Math.round(lines*Math.max(22,p.span*18));d.innerHTML=`<div class="content"><div class="meta">LEN <strong>${e.chars.toLocaleString()}</strong> · TARGET <strong>${e.target}</strong> · ACTUAL ${actual} · ${p.span}×${p.rows} · Δ ${delta>0?'+':''}${delta}% · VISIBLE ≈ ${capacityHint.toLocaleString()}</div><div class="body" style="-webkit-line-clamp:${lines}">${e.body}</div>${e.cue?`<div class="cue">${e.cue}</div>`:''}</div><div class="seq">${String(e.id).padStart(2,'0')}</div>`;L.appendChild(d)});$('meta').textContent=`${entries.length} articles / candidate ${selected+1}`;$('stats').textContent=Object.entries(c.m).map(([k,v])=>`${k}: ${v.toFixed(1)} × ${weights[k]}`).join('\n')+`\nscore: ${c.s.toFixed(2)}`;let C=$('candidates');C.innerHTML='';cands.forEach((x,i)=>{let b=document.createElement('button');b.className='candidate'+(i===selected?' active':'');b.textContent=`#${i+1} · ${x.s.toFixed(1)}`;b.onclick=()=>{selected=i;render()};C.appendChild(b)})}
-function apply(preserve=true){if(preserve&&cands[0])previous=new Map(cands[selected].ps.map(p=>[p.id,p]));else previous=new Map();entries=parse($('src').value);renderLadder();generate()}
-function weightUI(){let h=$('weights');h.innerHTML='';Object.keys(W).forEach(k=>{let d=document.createElement('label');d.className='w';d.innerHTML=`<span>${k}</span><input type="range" min="0" max="120" value="${weights[k]}"><output>${weights[k]}</output>`;let r=d.querySelector('input'),o=d.querySelector('output');r.oninput=()=>{weights[k]=+r.value;o.value=r.value;generate()};h.appendChild(d)})}
-function randomize(){let lens=[45,100,220,480,1000,2200,5000,10000];$('src').value=lens.map((n,i)=>makeArticle(i+2,n)+(Math.random()>.65?'\n@cue '+TOPICS[(i+4)%TOPICS.length]:'' )).join('\n---\n');apply(false)}
-$('apply').onclick=()=>apply(true);$('reset').onclick=()=>{$('src').value=SAMPLE;apply(false)};$('random').onclick=randomize;$('full').onchange=generate;$('grid').onchange=render;$('debug').onchange=render;$('count').onchange=generate;weightUI();apply(false)
+function overlap(a,b){
+  return !(a.x+a.span<=b.x||b.x+b.span<=a.x||a.row+a.rows<=b.row||b.row+b.rows<=a.row);
+}
+function placementsFor(e,state){
+  let out=[];
+  for(let span=2;span<=COLS;span++){
+    if(span===6&&!$('full').checked) continue;
+    let rows=rowsFor(e,span);
+    for(let row=state.cursor;row<=state.cursor+20;row++){
+      for(let x=0;x<=COLS-span;x++){
+        let p={id:e.id,x,row,span,rows};
+        if(state.ps.some(q=>overlap(p,q))) continue;
+        if(e.pin==='left'&&x>1) continue;
+        if(e.pin==='right'&&x+span<COLS-1) continue;
+        out.push(p);
+      }
+    }
+  }
+  return out.slice(0,46);
+}
+function intersectionRows(p,start,end){
+  return Math.max(0,Math.min(p.row+p.rows,end)-Math.max(p.row,start));
+}
+function largestEmptyRect(ps,start,end){
+  const H=Math.max(1,end-start), grid=Array.from({length:H},()=>Array(COLS).fill(0));
+  ps.forEach(p=>{
+    const y0=Math.max(start,p.row), y1=Math.min(end,p.row+p.rows);
+    for(let y=y0;y<y1;y++) for(let x=p.x;x<p.x+p.span;x++) grid[y-start][x]=1;
+  });
+  let best=0, heights=Array(COLS).fill(0), empty=0;
+  for(let y=0;y<H;y++){
+    for(let x=0;x<COLS;x++){
+      if(grid[y][x]===0){heights[x]++;empty++}else heights[x]=0;
+    }
+    for(let a=0;a<COLS;a++){
+      let min=Infinity;
+      for(let b=a;b<COLS;b++){
+        min=Math.min(min,heights[b]);
+        best=Math.max(best,min*(b-a+1));
+      }
+    }
+  }
+  return {largest:best/(H*COLS),empty:empty/(H*COLS)};
+}
+function viewportMetric(ps){
+  if(!ps.length) return {composition:0,axes:0,whitefield:0};
+  const maxRow=Math.max(...ps.map(p=>p.row+p.rows));
+  let comp=0,axes=0,white=0,count=0;
+  for(let start=0;start<maxRow;start+=BAND_STEP){
+    const end=start+BAND;
+    const active=ps.map(p=>({p,m:intersectionRows(p,start,end)*p.span})).filter(x=>x.m>0);
+    if(!active.length) continue;
+    count++;
+    active.sort((a,b)=>b.m-a.m);
+    const n=active.length;
+    if(n===1) comp+=30;
+    if(n>3) comp+=(n-3)*15;
+    if(n>=2){
+      const ratio=active[0].m/Math.max(1,active[1].m);
+      if(ratio<1.28) comp+=(1.28-ratio)*70;
+      if(ratio>3.8) comp+=(ratio-3.8)*8;
+      const share=active[0].m/active.reduce((s,x)=>s+x.m,0);
+      if(share<.42) comp+=(0.42-share)*80;
+      if(share>.74) comp+=(share-.74)*45;
+    }
+
+    const starts=new Map();
+    active.forEach(({p})=>starts.set(p.x,(starts.get(p.x)||0)+1));
+    const counts=[...starts.values()].sort((a,b)=>b-a);
+    const covered=(counts[0]||0)+(counts[1]||0);
+    axes+=(1-covered/n)*60+Math.max(0,starts.size-3)*12;
+
+    const wf=largestEmptyRect(active.map(x=>x.p),start,end);
+    if(wf.largest<.16) white+=(.16-wf.largest)*220;
+    if(wf.largest>.42) white+=(wf.largest-.42)*55;
+    if(wf.empty<.18) white+=(.18-wf.empty)*180;
+    if(wf.empty>.58) white+=(wf.empty-.58)*95;
+  }
+  return {
+    composition:Math.min(100,comp/Math.max(1,count)),
+    axes:Math.min(100,axes/Math.max(1,count)),
+    whitefield:Math.min(100,white/Math.max(1,count))
+  };
+}
+function metric(ps){
+  let area=0,edge=0,line=0,balance=0,fullrun=0,move=0,mass=0,mx=0;
+  const spanCounts=new Map();
+  ps.forEach((p,i)=>{
+    let e=entries[i],actual=p.span*p.rows;
+    area+=Math.abs(actual-e.target)/e.target*100;
+    if(p.x!==0&&p.x+p.span!==COLS) edge+=18;
+    const lineCost={2:16,3:5,4:0,5:3,6:8}[p.span]||0;
+    line+=lineCost;
+    mass+=actual; mx+=(p.x+p.span/2)*actual;
+    spanCounts.set(p.span,(spanCounts.get(p.span)||0)+1);
+    let prev=previous.get(p.id);
+    if(prev) move+=Math.abs(prev.x-p.x)*9+Math.abs(prev.row-p.row)*1.2+Math.abs(prev.span-p.span)*5;
+  });
+  for(let i=1;i<ps.length;i++) if(ps[i].span===6&&ps[i-1].span===6) fullrun+=34;
+  balance=mass?Math.abs(mx/mass-3)*12:0;
+
+  const maxSpanCount=Math.max(...spanCounts.values());
+  let spanrhythm=Math.max(0,(maxSpanCount/ps.length-.5)*95);
+  for(let i=2;i<ps.length;i++) if(ps[i].span===ps[i-1].span&&ps[i].span===ps[i-2].span) spanrhythm+=12;
+
+  const vm=viewportMetric(ps);
+  return {
+    area:area/ps.length,
+    move:move/ps.length,
+    edge:edge/ps.length,
+    line:line/ps.length,
+    balance,
+    fullrun,
+    spanrhythm:Math.min(100,spanrhythm),
+    ...vm
+  };
+}
+function score(m){
+  let sw=0,s=0;
+  Object.keys(W).forEach(k=>{sw+=weights[k];s+=m[k]*weights[k]});
+  return s/sw;
+}
+function generate(){
+  let beam=[{i:0,cursor:0,ps:[]}], bw=96;
+  while(beam.some(s=>s.i<entries.length)){
+    let next=[];
+    for(let st of beam){
+      if(st.i>=entries.length){next.push(st);continue}
+      for(let p of placementsFor(entries[st.i],st)){
+        const ps=[...st.ps,p];
+        next.push({i:st.i+1,cursor:Math.max(st.cursor,p.row),ps});
+      }
+    }
+    next.forEach(s=>{s.m=metric(s.ps);s.s=score(s.m)});
+    next.sort((a,b)=>a.s-b.s);
+    const dedup=[],seen=new Set();
+    for(const s of next){
+      const sig=s.ps.map(p=>`${p.x},${p.row},${p.span},${p.rows}`).join('|');
+      if(seen.has(sig)) continue;
+      seen.add(sig); dedup.push(s);
+      if(dedup.length>=bw) break;
+    }
+    beam=dedup;
+  }
+  cands=beam.filter(s=>s.i===entries.length).sort((a,b)=>a.s-b.s).slice(0,+$('count').value);
+  selected=0; render();
+}
+function dominantIds(ps){
+  const ids=new Set(),maxRow=Math.max(...ps.map(p=>p.row+p.rows));
+  for(let start=0;start<maxRow;start+=BAND){
+    const end=start+BAND;
+    const active=ps.map(p=>({p,m:intersectionRows(p,start,end)*p.span})).filter(x=>x.m>0).sort((a,b)=>b.m-a.m);
+    if(!active.length) continue;
+    if(active.length===1 || active[0].m/Math.max(1,active[1].m)>=1.18) ids.add(active[0].p.id);
+  }
+  return ids;
+}
+function renderLadder(){
+  const h=$('ladder'); h.innerHTML='';
+  entries.forEach(e=>{
+    const d=document.createElement('div');
+    d.innerHTML=`<b>${String(e.id).padStart(2,'0')} · ${e.chars.toLocaleString()}</b>target ${e.target} cells`;
+    h.appendChild(d);
+  });
+}
+function render(){
+  if(!cands.length) return;
+  const c=cands[selected], L=$('layout'), dom=dominantIds(c.ps);
+  L.querySelectorAll('.block').forEach(n=>n.remove());
+  L.classList.toggle('showgrid',$('grid').checked);
+  L.classList.toggle('debug',$('debug').checked);
+  $('app').classList.toggle('clean',$('clean').checked);
+
+  const maxRow=Math.max(...c.ps.map(p=>p.row+p.rows))+6;
+  L.style.height=(maxRow*U)+'px';
+
+  c.ps.forEach((p,i)=>{
+    const e=entries[i],actual=p.span*p.rows,delta=Math.round((actual-e.target)/e.target*100);
+    const d=document.createElement('article'),isDom=dom.has(p.id);
+    d.className='block'+(isDom?' dominant':'');
+    d.style.left=`calc(${p.x/COLS*100}% + ${p.x?G/2:0}px)`;
+    d.style.width=`calc(${p.span/COLS*100}% - ${p.x?G/2:0}px)`;
+    d.style.top=(p.row*U)+'px';
+    d.style.height=(p.rows*U)+'px';
+
+    const blockPx=p.rows*U;
+    const metaPx=$('clean').checked?0:24;
+    const cuePx=e.cue?44:0;
+    const linePx=isDom?24:20;
+    const lines=Math.max(2,Math.floor((blockPx-metaPx-cuePx-12)/linePx));
+    const capacity=Math.round(lines*Math.max(24,p.span*(isDom?15:18)));
+
+    d.innerHTML=`<div class="content">
+      <div class="meta">LEN <strong>${e.chars.toLocaleString()}</strong> · TARGET <strong>${e.target}</strong> · ACTUAL ${actual} · ${p.span}×${p.rows} · Δ ${delta>0?'+':''}${delta}% · VISIBLE ≈ ${capacity.toLocaleString()}</div>
+      <div class="body" style="-webkit-line-clamp:${lines}">${e.body}</div>
+      ${e.cue?`<div class="cue">${e.cue}</div>`:''}
+    </div><div class="seq">${String(e.id).padStart(2,'0')}</div>`;
+    L.appendChild(d);
+  });
+
+  $('meta').textContent=`${entries.length} articles / candidate ${selected+1}`;
+  $('stats').textContent=Object.entries(c.m).map(([k,v])=>`${k}: ${v.toFixed(1)} × ${weights[k]}`).join('\n')+`\nscore: ${c.s.toFixed(2)}`;
+
+  const C=$('candidates'); C.innerHTML='';
+  cands.forEach((x,i)=>{
+    const b=document.createElement('button');
+    b.className='candidate'+(i===selected?' active':'');
+    b.textContent=`#${i+1} · ${x.s.toFixed(1)}`;
+    b.onclick=()=>{selected=i;render()};
+    C.appendChild(b);
+  });
+}
+function apply(preserve=true){
+  if(preserve&&cands[0]) previous=new Map(cands[selected].ps.map(p=>[p.id,p]));
+  else previous=new Map();
+  entries=parse($('src').value); renderLadder(); generate();
+}
+function weightUI(){
+  const h=$('weights'); h.innerHTML='';
+  Object.keys(W).forEach(k=>{
+    const d=document.createElement('label'); d.className='w';
+    d.innerHTML=`<span>${k}</span><input type="range" min="0" max="120" value="${weights[k]}"><output>${weights[k]}</output>`;
+    const r=d.querySelector('input'),o=d.querySelector('output');
+    r.oninput=()=>{weights[k]=+r.value;o.value=r.value;generate()};
+    h.appendChild(d);
+  });
+}
+function randomize(){
+  const ls=[45,110,250,520,1200,2400,5200,10000];
+  $('src').value=ls.map((n,i)=>makeArticle((i+3)%TOPICS.length,n)).join('\n---\n');
+  apply(false);
+}
+
+$('apply').onclick=()=>apply(true);
+$('reset').onclick=()=>{$('src').value=SAMPLE;apply(false)};
+$('random').onclick=randomize;
+$('full').onchange=generate;
+$('clean').onchange=render;
+$('grid').onchange=render;
+$('debug').onchange=render;
+$('count').onchange=generate;
+
+weightUI();
+apply(false);
+
 })();
 </script>
-</body></html>
+</body>
+</html>
