@@ -105,7 +105,9 @@
 
   function minSpan(entry) {
     if (!isMobile()) return 2;
-    const metadata = entry?.editorial?.status === 'ready' ? entry.editorial : null;
+    const metadata = typeof editorialValue === 'function'
+      ? editorialValue(entry)
+      : (entry?.editorial?.status === 'ready' ? entry.editorial : null);
     const fn = metadata?.function || 'neutral';
     const chars = Number(entry?.chars || 0);
     const territory = Number(entry?.target || 0);
