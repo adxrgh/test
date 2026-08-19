@@ -119,6 +119,12 @@ function configuredPricing() {
   };
 }
 
+function requestTimeoutMs() {
+  const configured = Number(process.env.OPENROUTER_REQUEST_TIMEOUT_MS || 90000);
+  if (!Number.isFinite(configured)) return 90000;
+  return Math.max(15000, Math.min(300000, configured));
+}
+
 function fallbackUsageCost(usage, pricing) {
   const input = Number(usage?.prompt_tokens ?? usage?.input_tokens ?? 0);
   const cached = Number(usage?.prompt_tokens_details?.cached_tokens ?? usage?.input_tokens_details?.cached_tokens ?? 0);
@@ -156,36 +162,61 @@ function chunk(items, size) {
 
 async function callOpenRouter(batch, model) {
   const ids = batch.map((item) => item.id);
-  const apiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-      "HTTP-Referer": "http://localhost:8787",
-      "X-Title": "TypeBlock Editorial AI Lab"
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: instructions },
-        { role: "user", content: JSON.stringify({ schemaVersion: 1, items: batch }) }
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "typeblock_editorial_scan",
-          strict: true,
-          schema: schemaFor(ids)
-        }
-      },
-      plugins: [{ id: "response-healing" }],
-      provider: { require_parameters: true },
-      max_completion_tokens: Math.max(1200, Math.min(4000, batch.length * 500)),
-      stream: false
-    })
-  });
+  const timeoutMs = requestTimeoutMs();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let apiResponse;
 
-  const responseBody = await apiResponse.json();
+  try {
+    apiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "http://localhost:8787",
+        "X-Title": "TypeBlock Editorial AI Lab"
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: instructions },
+          { role: "user", content: JSON.stringify({ schemaVersion: 1, items: batch }) }
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "typeblock_editorial_scan",
+            strict: true,
+            schema: schemaFor(ids)
+          }
+        },
+        plugins: [{ id: "response-healing" }],
+        provider: { require_parameters: true },
+        max_completion_tokens: Math.max(1200, Math.min(4000, batch.length * 500)),
+        stream: false
+      }),
+      signal: controller.signal
+    });
+  } catch (error) {
+    const err = error?.name === "AbortError"
+      ? new Error(`OpenRouter request timed out after ${Math.round(timeoutMs / 1000)} seconds for Entries ${ids.join(", ")}.`)
+      : new Error(`OpenRouter network request failed for Entries ${ids.join(", ")}: ${error.message || error}`);
+    err.statusCode = 504;
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const rawBody = await apiResponse.text();
+  let responseBody;
+  try {
+    responseBody = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    const err = new Error(`OpenRouter returned non-JSON output with HTTP ${apiResponse.status}.`);
+    err.statusCode = 502;
+    throw err;
+  }
+
   if (!apiResponse.ok || responseBody?.error) {
     const message = responseBody?.error?.message || `OpenRouter request failed with HTTP ${apiResponse.status}`;
     const err = new Error(message);
@@ -259,6 +290,7 @@ export async function runEditorialScan(payload) {
 
   const model = process.env.OPENROUTER_MODEL || "openai/gpt-5-mini";
   const batchSize = Math.max(1, Math.min(8, Number(process.env.OPENROUTER_BATCH_SIZE || 4)));
+  const batches = chunk(sanitizedItems, batchSize);
   const results = [];
   const usage = {
     prompt_tokens: 0,
@@ -270,7 +302,12 @@ export async function runEditorialScan(payload) {
   const requestIds = [];
   let resolvedModel = model;
 
-  for (const batch of chunk(sanitizedItems, batchSize)) {
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
+    const batch = batches[batchIndex];
+    const ids = batch.map((item) => item.id);
+    const startedAt = Date.now();
+    console.log(`[editorial-scan] batch ${batchIndex + 1}/${batches.length} start · Entries ${ids.join(", ")}`);
+
     const result = await callOpenRouter(batch, model);
     results.push(...result.analyses);
     addUsage(usage, result.usage);
@@ -281,6 +318,7 @@ export async function runEditorialScan(payload) {
       for (const missingId of result.missingIds) {
         const item = batch.find((x) => x.id === missingId);
         if (!item) continue;
+        console.log(`[editorial-scan] retry · Entry ${missingId}`);
         const retry = await callOpenRouter([item], model);
         results.push(...retry.analyses);
         addUsage(usage, retry.usage);
@@ -293,6 +331,11 @@ export async function runEditorialScan(payload) {
         }
       }
     }
+
+    console.log(
+      `[editorial-scan] batch ${batchIndex + 1}/${batches.length} done · ` +
+      `${Date.now() - startedAt} ms · Entries ${ids.join(", ")}`
+    );
   }
 
   const byId = new Map(results.map((item) => [item.id, item]));
