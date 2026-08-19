@@ -24,6 +24,8 @@
 .viewport-cut span{position:absolute;right:3px;top:3px;padding:1px 3px;background:rgba(251,251,247,.92);font-size:6px;font-weight:800;letter-spacing:.08em;color:rgba(255,75,0,.66)}
 
 @media(max-width:780px){
-  .app.profile-mobile .stage{width:100%;max-width:390px}
+  .app.profile-mobile .main{width:calc(100% + 20px);margin-left:-10px;margin-right:-10px}
+  .app.profile-mobile .stage{width:100%;max-width:390px;box-shadow:none}
   .app.profile-mobile #layout{width:calc(100% - 32px)}
+  .app.profile-mobile .cands,.app.profile-mobile .stats{padding-left:10px;padding-right:10px}
 }
