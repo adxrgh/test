@@ -13,13 +13,14 @@
     <textarea id="src"></textarea>
     <div class="row"><button id="apply">Apply text</button><button id="reset">Reset sample</button></div>
     <p>Fudebam import reads only <code>entries[]</code>: <code>content</code>, <code>createdAt</code>, and <code>captureOrigin</code>. Records with <code>hiddenAt</code> or <code>mergedIntoEntryID</code> are excluded. Annotations, revisions, and AI review sessions remain sidecars rather than becoming Layout Entries. The newest 10 active Entries are selected, then placed oldest → newest.</p>
+    <p>The selected 10-entry snapshot and its Editorial Analysis are stored locally in this browser with IndexedDB. Reopening the same localhost page restores them without another API call when the Entry text and model are unchanged.</p>
   </section>
   <section class="p"><h2>Editorial analysis</h2>
     <div class="mode"><button data-mode="off">OFF</button><button data-mode="live" class="on">LIVE</button></div>
     <div class="row"><button id="analyze" class="primary">Analyze stale / missing</button><button id="clearAnalysis">Clear</button></div>
     <input class="endpoint" id="endpoint" value="/api/editorial-scan" aria-label="Live endpoint">
     <div class="status" id="analysisStatus"><strong>LIVE</strong> — analysis runs only after you click Analyze. The API key stays in the local backend.</div>
-    <div class="pricing">LIVE: OpenRouter-reported token usage and cost when available.</div>
+    <div class="pricing">LIVE: OpenRouter-reported token usage and cost when available. Restored analyses incur no new cost.</div>
   </section>
   <section class="p"><h2>Cost ledger</h2><div class="kv" id="costLedger"></div></section>
   <section class="p"><h2>Editorial inspector</h2><div class="editorial-card" id="editorialInspector">Click a block.</div></section>
@@ -33,4 +34,5 @@
 <script src="provider-openrouter.js"></script>
 <script src="solver.js"></script>
 <script src="ui.js"></script>
+<script src="persistence.js"></script>
 <script src="import-data.js"></script>
