@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TypeBlock Editorial AI Lab</title>
+<link rel="stylesheet" href="style.css">
+<div class="app" id="app">
+<header class="head"><h1>TypeBlock<br>Editorial AI Lab</h1><small>content → editorial scan → local layout</small></header>
+<aside class="side">
+  <section class="p"><h2>Dataset</h2><div class="ladder" id="ladder"></div><textarea id="src"></textarea><div class="row"><button id="apply">Apply text</button><button id="reset">Reset sample</button></div><p>Use <code>@source collected</code> or <code>@source authored</code>. Separate Entries with <code>---</code>.</p></section>
+  <section class="p"><h2>Editorial analysis</h2>
+    <div class="mode"><button data-mode="off">OFF</button><button data-mode="mock" class="on">MOCK</button><button data-mode="live">LIVE</button></div>
+    <div class="row"><button id="analyze" class="primary">Analyze stale / missing</button><button id="clearAnalysis">Clear</button></div>
+    <input class="endpoint hidden" id="endpoint" value="/api/editorial-scan" aria-label="Live endpoint">
+    <div class="status" id="analysisStatus"><strong>MOCK</strong> — local deterministic editorial scan. No API call.</div>
+    <div class="pricing">Cost model: <code>gpt-5-mini</code> · pricing snapshot 2026-08-19</div>
+  </section>
+  <section class="p"><h2>Cost ledger</h2><div class="kv" id="costLedger"></div></section>
+  <section class="p"><h2>Editorial inspector</h2><div class="editorial-card" id="editorialInspector">Click a block.</div></section>
+  <section class="p"><h2>Rolling viewport</h2><div class="kv" id="rolling"></div></section>
+  <section class="p"><h2>Weights</h2><div class="weights" id="weights"></div></section>
+  <section class="p"><h2>Options</h2><div class="opts"><label><input id="clean" type="checkbox">clean</label><label><input id="grid" type="checkbox">grid</label><label><input id="bounds" type="checkbox">bounds</label><label><input id="worst" type="checkbox" checked>worst viewport</label><label><input id="semantic" type="checkbox" checked>editorial fit</label></div></section>
+</aside>
+<main class="main"><div class="stage"><div class="stagehead"><b>TypeBlock / Layout</b><span id="stageMeta"></span></div><div id="layout"><div class="grid" id="gridlines"></div></div></div><div class="cands" id="cands"></div><div class="stats" id="stats"></div></main>
+</div>
+<script src="core.js"></script>
+<script src="solver.js"></script>
+<script src="ui.js"></script>
