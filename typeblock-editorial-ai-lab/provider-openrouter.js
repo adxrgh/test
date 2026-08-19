@@ -112,13 +112,13 @@ async function analyze(){
     lastUsage=null;
     setStatus('<strong>OFF</strong> — editorial metadata disabled. Layout is deterministic only.');
     generate();
-    return {ok:true,processed:0};
+    return {ok:true,processed:0,persisted:true};
   }
 
   const todo=entries.filter(e=>!e.editorial||e.editorial.status==='stale'||e.editorial.status==='missing');
   if(!todo.length){
     setStatus('<strong>READY</strong> — nothing stale or missing. Existing local analyses remain active.');
-    return {ok:true,processed:0};
+    return {ok:true,processed:0,persisted:true};
   }
 
   if(mode==='mock'){
@@ -132,7 +132,7 @@ async function analyze(){
     lastUsage={inputTokens:input,cachedInputTokens:0,outputTokens:output,cost:priceCost(input,0,output),kind:'estimate'};
     setStatus(`<strong>MOCK READY</strong> — ${todo.length} Entries analyzed locally. No API request.`);
     generate();
-    return {ok:true,processed:todo.length};
+    return {ok:true,processed:todo.length,persisted:false};
   }
 
   const analyzeButton=$('analyze');
@@ -193,3 +193,6 @@ async function analyze(){
     if(analyzeButton)analyzeButton.disabled=false;
   }
 }
+
+analyze.__typeblockPersistenceWrapped=true;
+window.TypeBlockLiveAnalyze=analyze;
