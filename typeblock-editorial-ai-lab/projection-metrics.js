@@ -166,14 +166,22 @@
     return bodyRows + headerMetrics(entry, span).extraRows;
   }
 
+  function bodyRows(entry, span, rows) {
+    return Math.max(0, Number(rows || 0) - headerMetrics(entry, span).extraRows);
+  }
+
+  function bodyArea(entry, placement) {
+    if (!placement) return 0;
+    return Number(placement.span || 0) * bodyRows(entry, placement.span, placement.rows);
+  }
+
   function visibleLines(entry, span, rows) {
-    const header = headerMetrics(entry, span);
-    return baseVisibleLines(proxyEntry(entry), span, Math.max(4, Number(rows || 0) - header.extraRows));
+    return baseVisibleLines(proxyEntry(entry), span, Math.max(4, bodyRows(entry, span, rows)));
   }
 
   function shapeMetrics(entry, span, rows) {
     const header = headerMetrics(entry, span);
-    const result = baseShapeMetrics(proxyEntry(entry), span, Math.max(4, Number(rows || 0) - header.extraRows));
+    const result = baseShapeMetrics(proxyEntry(entry), span, Math.max(4, bodyRows(entry, span, rows)));
     return { ...result, projectionHeader: header, chromeHeight: result.chromeHeight + header.extraHeight };
   }
 
@@ -185,10 +193,16 @@
   metrics.version = VERSION;
   metrics.measure = measure;
   metrics.rowsFor = rowsFor;
+  metrics.bodyRows = bodyRows;
+  metrics.bodyArea = bodyArea;
   metrics.visibleLines = visibleLines;
   metrics.shapeMetrics = shapeMetrics;
   metrics.headerMetrics = headerMetrics;
   metrics.displayBody = displayBody;
   metrics.invalidate = invalidate;
   metrics.baseVersion = BASE_VERSION;
+
+  addEventListener('resize', () => headerCache.clear(), { passive: true });
+  if (document.fonts?.ready) document.fonts.ready.then(() => headerCache.clear());
+  document.fonts?.addEventListener?.('loadingdone', () => headerCache.clear());
 })();
