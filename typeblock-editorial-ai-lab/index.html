@@ -4,7 +4,7 @@
 <title>TypeBlock Editorial AI Lab</title>
 <link rel="stylesheet" href="style.css">
 <div class="app" id="app">
-<header class="head"><h1>TypeBlock<br>Editorial AI Lab</h1><small>local data → editorial scan → local layout</small></header>
+<header class="head"><h1>TypeBlock<br>Editorial AI Lab</h1><small>local data → editorial scan → phrase layout</small></header>
 <aside class="side">
   <section class="p"><h2>Dataset</h2>
     <div class="row"><input id="dataFile" type="file" accept=".json,application/json"><a href="data-template.json" download>JSON template</a></div>
@@ -14,6 +14,7 @@
     <div class="row"><button id="apply">Apply text</button><button id="reset">Reset sample</button></div>
     <p>Fudebam import reads only <code>entries[]</code>: <code>content</code>, <code>createdAt</code>, and <code>captureOrigin</code>. Records with <code>hiddenAt</code> or <code>mergedIntoEntryID</code> are excluded. Annotations, revisions, and AI review sessions remain sidecars rather than becoming Layout Entries. The newest 10 active Entries are selected, then placed oldest → newest.</p>
     <p>The selected 10-entry snapshot and its Editorial Analysis are stored locally in this browser with IndexedDB. Reopening the same localhost page restores them without another API call when the Entry text and model are unchanged.</p>
+    <p>The layout now groups consecutive Entries into 1–4 item Editorial Phrases. AI continuity and topic-shift signals are combined with a deterministic local text relation check; each phrase then selects a legal six-column composition while every Entry keeps its length-derived area.</p>
   </section>
   <section class="p"><h2>Editorial analysis</h2>
     <div class="mode"><button data-mode="off">OFF</button><button data-mode="live" class="on">LIVE</button></div>
@@ -33,7 +34,9 @@
 <script>window.TYPEBLOCK_DEFERRED_BOOT=true;</script>
 <script src="core.js"></script>
 <script src="provider-openrouter.js"></script>
-<script src="solver.js"></script>
+<script src="solver-phrase-model.js"></script>
+<script src="solver-phrase-templates.js"></script>
+<script src="solver-phrase-engine.js"></script>
 <script src="ui.js"></script>
 <script src="persistence.js"></script>
 <script src="import-data.js"></script>
