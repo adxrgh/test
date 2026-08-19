@@ -189,7 +189,8 @@
     const words = title.split(/\s+/).filter(Boolean).length;
     const punctuation = (title.match(/[\p{P}\p{S}]/gu) || []).length;
     if (punctuation / Math.max(1, title.length) > 0.28) return false;
-    if (cjk >= 2) return title.length <= 42;
+    if (cjk >= 4) return title.length >= 4 && title.length <= 42;
+    if (cjk > 0) return false;
     return words >= 2 && words <= 14 && title.length <= 100;
   }
 
@@ -351,7 +352,7 @@
       `<span>Cached input</span><b>${cached.toLocaleString()}</b>` +
       `<span>Recorded output</span><b>${output.toLocaleString()}</b>` +
       `<span>Recorded cost</span><b>$${cost.toFixed(6)}</b>` +
-      `<span>100-entry projection</span><b>$${(average * 100).toFixed(4)}</b>`;
+      `<span>100-entry estimate</span><b>$${(average * 100).toFixed(4)}</b>`;
   }
 
   function invalidateAndGenerate(reason) {
@@ -481,8 +482,7 @@
     if (omitted.length) throw new Error(`Projection backend omitted Entry ${omitted.map(entry => entry.id).join(', ')}.`);
 
     const inputWeights = batch.map(entry => Math.max(1, estimateInput(entry)));
-
-    batch.forEach(entry => {
+    const updates = batch.map(entry => {
       const source = entry.projection || localProjection(entry);
       const needs = projectionNeeds(entry);
       const result = map.get(entry.id);
@@ -491,23 +491,27 @@
       const generatedDeck = needs?.needDeck ? normalizeGeneratedText(result.deck, language, 'deck') : '';
       if (needs?.needTitle && !generatedTitle) throw new Error(`Entry ${entry.id} returned an empty required title.`);
       if (needs?.needDeck && !generatedDeck) throw new Error(`Entry ${entry.id} returned an empty required deck.`);
-      entry.projection = {
-        ...source,
-        status: 'ready',
-        title: source.title || generatedTitle || null,
-        deck: source.deck || generatedDeck || null,
-        titleSource: source.title ? source.titleSource : (generatedTitle ? 'generated' : 'none'),
-        deckSource: source.deck ? source.deckSource : (generatedDeck ? 'generated' : 'none'),
-        confidence: clamp(Number(result.confidence || 0), 0, 1),
-        language,
-        needsTitle: false,
-        needsDeck: false,
-        sourceDigest: sourceDigestFor(entry),
-        model: data.model || currentModel,
-        schemaVersion: SCHEMA_VERSION,
-        generatedAt: new Date().toISOString()
+      return {
+        entry,
+        projection: {
+          ...source,
+          status: 'ready',
+          title: source.title || generatedTitle || null,
+          deck: source.deck || generatedDeck || null,
+          titleSource: source.title ? source.titleSource : (generatedTitle ? 'generated' : 'none'),
+          deckSource: source.deck ? source.deckSource : (generatedDeck ? 'generated' : 'none'),
+          confidence: clamp(Number(result.confidence || 0), 0, 1),
+          language,
+          needsTitle: false,
+          needsDeck: false,
+          sourceDigest: sourceDigestFor(entry),
+          model: data.model || currentModel,
+          schemaVersion: SCHEMA_VERSION,
+          generatedAt: new Date().toISOString()
+        }
       };
     });
+    updates.forEach(update => { update.entry.projection = update.projection; });
 
     const usage = data.usage || {};
     const input = Number(usage.input_tokens ?? usage.prompt_tokens ?? 0);
