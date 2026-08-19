@@ -3,24 +3,33 @@ const PHRASE_BEAM_WIDTH=48;
 const LAYOUT_BEAM_WIDTH=72;
 const MAX_PARTITIONS=10;
 
-function rowsFor(e,span){return Math.max(4,Math.round(e.target/span))}
+function rowsFor(e,span){return Math.max(4,Math.round(layoutTargetFor(e)/span))}
 function overlap(a,b){return!(a.x+a.span<=b.x||b.x+b.span<=a.x||a.row+a.rows<=b.row||b.row+b.rows<=a.row)}
 function layoutBottom(ps){return ps.reduce((m,p)=>Math.max(m,p.row+p.rows),0)}
 function intersect(p,a,b){return Math.max(0,Math.min(p.row+p.rows,b)-Math.max(p.row,a))}
 
 function intrinsic(e,p){
-  let width=Math.max(360,$('layout').clientWidth||720),
-      cw=(width-G*5)/6,
-      px=cw*p.span+G*(p.span-1),
+  let gutter=layoutGutter(),
+      width=Math.max(isMobileLayout()?318:360,$('layout').clientWidth||(isMobileLayout()?358:720)),
+      cw=(width-gutter*5)/6,
+      px=cw*p.span+gutter*(p.span-1),
       hp=p.rows*U,
-      cpl=Math.max(8,px/7.15),
-      lineCount=Math.max(2,Math.floor((hp-20-(e.cue?34:0))/20)),
+      cjkCount=(String(e.body||'').match(/[\u3400-\u9fff\uf900-\ufaff]/g)||[]).length,
+      cjkRatio=e.chars?cjkCount/e.chars:0,
+      glyphWidth=cjkRatio>.25?(isMobileLayout()?14.2:13.6):7.15,
+      cpl=Math.max(4,px/glyphWidth),
+      range=layoutLineMeasureRange(e),
+      linePx=isMobileLayout()?22:20,
+      overhead=isMobileLayout()?24:20,
+      lineCount=Math.max(2,Math.floor((hp-overhead-(e.cue?34:0))/linePx)),
       cap=Math.max(1,cpl*lineCount),
       fill=Math.min(1,e.chars/cap),
-      lineCost=cpl<30?(30-cpl)*2.1:cpl>76?(cpl-76)*1.45:0,
-      fillCost=fill<.5?(.5-fill)*175:fill<.68?(.68-fill)*25:0,
+      lineCost=cpl<range[0]?(range[0]-cpl)*2.15:cpl>range[1]?(cpl-range[1])*1.45:0,
+      fillCost=fill<.42?(.42-fill)*175:fill<.62?(.62-fill)*24:0,
       aspect=px/hp,
-      aspectCost=aspect<.58?(.58-aspect)*38:aspect>5.6?(aspect-5.6)*9:0;
+      minAspect=isMobileLayout()?.34:.58,
+      maxAspect=isMobileLayout()?4.8:5.6,
+      aspectCost=aspect<minAspect?(minAspect-aspect)*42:aspect>maxAspect?(aspect-maxAspect)*9:0;
   return{cost:clamp(lineCost+fillCost+aspectCost,0,100),fill,cpl,aspect}
 }
 
@@ -149,16 +158,31 @@ function phrasePartitions(signals){
 }
 
 function roleSpanCost(e,span,phraseSize){
-  let m=editorialValue(e),fn=m?.function||'neutral',prefs={
-    referenceMaterial:phraseSize>1?[3,4,5]:[4,5],
-    background:[2,3,4],
-    fragment:[2,3],
-    continuation:[2,3,4],
-    response:[2,3,4],
-    newThought:[4,5,6],
-    neutral:[3,4]
-  }[fn]||[3,4];
-  return Math.min(...prefs.map(value=>Math.abs(value-span)))*9
+  let m=editorialValue(e),fn=m?.function||'neutral',prefs;
+  if(isMobileLayout()){
+    prefs={
+      referenceMaterial:[6,5],
+      background:[5,4],
+      fragment:[3,4],
+      continuation:[4,3,5],
+      response:[3,4,5],
+      newThought:[5,4,6],
+      neutral:[4,5]
+    }[fn]||[4,5]
+  }else{
+    prefs={
+      referenceMaterial:phraseSize>1?[3,4,5]:[4,5],
+      background:[2,3,4],
+      fragment:[2,3],
+      continuation:[2,3,4],
+      response:[2,3,4],
+      newThought:[4,5,6],
+      neutral:[3,4]
+    }[fn]||[3,4]
+  }
+  let cost=Math.min(...prefs.map(value=>Math.abs(value-span)))*9;
+  if(isMobileLayout()&&span<layoutMinSpan(e))cost+=100+(layoutMinSpan(e)-span)*30;
+  return cost
 }
 
 function makeLocalPlacement(entry,index,x,row,span,phraseId,templateName,phraseSize){
@@ -188,12 +212,13 @@ function readOrderCost(ps){
 }
 
 function templateGeometryCost(ps,groupEntries){
-  let bottom=layoutBottom(ps),area=ps.reduce((sum,p)=>sum+p.span*p.rows,0),density=area/Math.max(1,C*bottom),cost=0;
+  let bottom=layoutBottom(ps),area=ps.reduce((sum,p)=>sum+p.span*p.rows,0),density=area/Math.max(1,C*bottom),cost=0,
+      bottomLimit=isMobileLayout()?170:84;
   if(density<.43)cost+=(.43-density)*75;
-  if(density>.9)cost+=(density-.9)*85;
-  if(bottom>84)cost+=(bottom-84)*.35;
+  if(density>.92)cost+=(density-.92)*70;
+  if(bottom>bottomLimit)cost+=(bottom-bottomLimit)*(isMobileLayout()?.18:.35);
   for(let i=0;i<ps.length;i++)for(let j=i+1;j<ps.length;j++){
-    let areaRatio=groupEntries[i].target/Math.max(1,groupEntries[j].target),spanRatio=ps[i].span/ps[j].span;
+    let areaRatio=layoutTargetFor(groupEntries[i])/Math.max(1,layoutTargetFor(groupEntries[j])),spanRatio=ps[i].span/ps[j].span;
     if(areaRatio>1.45&&spanRatio<.82)cost+=(areaRatio-1.45)*12;
     if(areaRatio<.69&&spanRatio>1.22)cost+=(1/Math.max(areaRatio,.1)-1.45)*8
   }
@@ -201,6 +226,7 @@ function templateGeometryCost(ps,groupEntries){
 }
 
 function finishTemplate(name,phraseId,groupEntries,specs,baseCost=0){
+  if(isMobileLayout()&&specs.some((spec,index)=>spec.span<layoutMinSpan(groupEntries[index])))return null;
   let ps=specs.map((spec,index)=>makeLocalPlacement(groupEntries[index],index,spec.x,spec.row,spec.span,phraseId,name,groupEntries.length));
   if(ps.some((p,i)=>ps.some((q,j)=>i!==j&&overlap(p,q))))return null;
   let geometry=templateGeometryCost(ps,groupEntries),intrinsicCost=mean(ps.map(p=>p.shape.intrinsic)),roleCost=mean(ps.map(p=>p.shape.editorial));
