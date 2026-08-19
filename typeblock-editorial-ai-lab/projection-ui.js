@@ -113,6 +113,16 @@
     };
   }
 
+  if (typeof renderCost === 'function') {
+    const baseRenderCost = renderCost;
+    renderCost = function projectionAwareRenderCost() {
+      baseRenderCost();
+      document.querySelectorAll('#costLedger span').forEach(label => {
+        if (label.textContent === '100-entry projection') label.textContent = '100-entry estimate';
+      });
+    };
+  }
+
   if (typeof renderEditorial === 'function') {
     const baseRenderEditorial = renderEditorial;
     renderEditorial = function projectionRenderEditorial() {
