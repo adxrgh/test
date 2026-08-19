@@ -1,0 +1,46 @@
+const C=6,U=8,G=12;
+const PRICING={model:'gpt-5-mini',input:0.25,cached:0.025,output:2.00,per:1_000_000};
+const FUNCTIONS=['referenceMaterial','background','fragment','continuation','response','newThought','neutral'];
+const W0={shape:90,editorial:86,semantic:78,area:82,whiteField:80,rolling:104,move:80};
+let W={...W0},entries=[],candidates=[],selected=0,previous=new Map(),focus=null,mode='mock',lastUsage=null;
+const $=id=>document.getElementById(id);
+for(let i=0;i<C;i++)$('gridlines').appendChild(document.createElement('i'));
+const TOPICS=[
+  'Spatial memory improves when the composition stays stable enough to be learned. A reader can remember that an article occupied a broad region while a later thought appeared beside it.',
+  'Whitespace is pacing rather than waste. A complete quiet field can separate topics, while tiny holes usually feel accidental and weaken the reading path.',
+  'Collected material and authored notes should not be treated as the same editorial object. An article is usually self-contained material; a quick note often depends on nearby context.',
+  'Area represents content mass while width and height express editorial voice. The same area can become a column, neutral body, or a horizontal statement.',
+  'Processed traces stay anchored to the source. Highlights, notes, and requested explanations change what becomes visible without changing the source territory.',
+  'Rolling layout quality matters because any scroll offset can become the current page. The system should avoid one excellent first screen followed by a broken second screen.'
+];
+function makeLong(seed,n){let s='';while(s.length<n)s+=(s?' ':'')+TOPICS[(seed+Math.floor(s.length/180))%TOPICS.length];return s.slice(0,n)}
+function sample(){return[
+  '@source collected\n'+makeLong(0,900),
+  '@source authored\nThe large article should remain a material field, but this note is really my reaction to it.',
+  '@source authored\nMaybe the note should stay close to the article and share one of its axes instead of becoming a separate card.',
+  '@source collected\n'+makeLong(2,2600),
+  '@source authored\nNew thought: the sequence number already carries time, so a topic change can be expressed by whitespace instead of another divider.',
+  '@source collected\n'+makeLong(4,5200),
+  '@source authored\nThis is a response to the previous material. The interesting part is the relationship, not whether the system thinks my note is more important.',
+  '@source collected\n'+makeLong(1,9000)
+].join('\n---\n')}
+const SAMPLE=sample();$('src').value=SAMPLE;
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function mean(a){return a.length?a.reduce((x,y)=>x+y,0)/a.length:0}
+function pct(a,p){if(!a.length)return 0;let s=[...a].sort((x,y)=>x-y);return s[Math.min(s.length-1,Math.max(0,Math.ceil(p*s.length)-1))]}
+function hash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return('00000000'+(h>>>0).toString(16)).slice(-8)}
+function target(n){return clamp(Math.round(10+Math.sqrt(Math.max(1,n))*1.46),18,170)}
+function estimateTokens(text){let cjk=(text.match(/[\u3400-\u9fff\uf900-\ufaff]/g)||[]).length,other=Math.max(0,text.length-cjk);return Math.max(1,Math.ceil(cjk*.95+other/4))}
+function estimatedOutputTokens(){return 72}
+function priceCost(input,cached,output){let non=Math.max(0,input-cached);return(non*PRICING.input+cached*PRICING.cached+output*PRICING.output)/PRICING.per}
+function parse(text){let old=new Map(entries.map(e=>[e.id,e]));return text.split(/\n\s*---\s*\n/).map((chunk,i)=>{let provenance='collected',cue='',body=[];chunk.trim().split(/\n/).forEach(line=>{if(/^@source\s+/i.test(line))provenance=line.replace(/^@source\s+/i,'').trim()==='authored'?'authored':'collected';else if(/^@cue\s+/i.test(line))cue=line.replace(/^@cue\s+/i,'');else body.push(line)});let b=body.join(' ').trim();if(!b)return null;let id=i+1,digest=hash(b),prev=old.get(id),editorial=prev?.editorial?{...prev.editorial}:null;if(editorial&&editorial.sourceDigest!==digest)editorial={...editorial,status:'stale'};return{id,body:b,provenance,cue,chars:b.length,target:target(b.length),digest,editorial,usage:prev?.usage||null}}).filter(Boolean)}
+function words(s){return new Set((s.toLowerCase().match(/[a-z]{3,}|[\u3400-\u9fff]{2,}/g)||[]).slice(0,120))}
+function similarity(a,b){if(!a||!b)return 0;let A=words(a),B=words(b);if(!A.size||!B.size)return 0;let hit=0;A.forEach(x=>{if(B.has(x))hit++});return hit/Math.max(1,Math.min(A.size,B.size))}
+function mockEditorial(e,i){let prev=entries[i-1],sim=similarity(prev?.body,e.body),continuity=clamp((prev?0.18:0)+sim*.9+(e.provenance==='authored'&&prev?.provenance==='authored'?0.22:0),0,1),topicShift=clamp(1-continuity+(e.provenance!==prev?.provenance&&prev?0.08:0),0,1);let fn='neutral',dependency='standalone';if(e.provenance==='collected')fn=e.chars>1400?'referenceMaterial':'background';else if(continuity>.62){fn='continuation';dependency='dependsOnPrevious'}else if(e.chars<230)fn=topicShift>.7?'newThought':'fragment';else fn='response';if(e.provenance==='authored'&&prev?.provenance==='collected'&&continuity>.32){fn='response';dependency='refersToNearby'}return{status:'ready',function:fn,continuity:+continuity.toFixed(2),dependency,topicShift:+topicShift.toFixed(2),sourceDigest:e.digest,model:'mock-editorial-v1',schemaVersion:1,analyzedAt:new Date().toISOString()}}
+function analysisInputFor(e,i){let prev=entries[i-1],next=entries[i+1];return JSON.stringify({id:e.id,provenance:e.provenance,text:e.body,previous:prev?{id:prev.id,tail:prev.body.slice(-380)}:null,next:next?{id:next.id,head:next.body.slice(0,380)}:null})}
+function preflight(){let items=entries.filter(e=>!e.editorial||e.editorial.status==='stale'||e.editorial.status==='missing'),input=items.reduce((s,e)=>s+estimateTokens(analysisInputFor(e,entries.indexOf(e))),0),output=items.length*estimatedOutputTokens();return{count:items.length,input,output,cost:priceCost(input,0,output)}}
+async function analyze(){if(mode==='off'){entries.forEach(e=>{e.editorial=null;e.usage=null});lastUsage=null;setStatus('<strong>OFF</strong> — editorial metadata disabled. Layout is deterministic only.');generate();return}let todo=entries.filter(e=>!e.editorial||e.editorial.status==='stale'||e.editorial.status==='missing');if(!todo.length){setStatus('<strong>READY</strong> — nothing stale or missing.');return}if(mode==='mock'){let input=0,output=0;todo.forEach(e=>{let i=entries.indexOf(e),inp=estimateTokens(analysisInputFor(e,i)),out=estimatedOutputTokens();input+=inp;output+=out;e.editorial=mockEditorial(e,i);e.usage={inputTokens:inp,cachedInputTokens:0,outputTokens:out,estimatedUSD:priceCost(inp,0,out),actualUSD:null,kind:'estimate'}});lastUsage={inputTokens:input,cachedInputTokens:0,outputTokens:output,cost:priceCost(input,0,output),kind:'estimate'};setStatus(`<strong>MOCK READY</strong> — ${todo.length} Entries analyzed locally. No API request.`);generate();return}
+  setStatus(`<strong>LIVE</strong> — sending ${todo.length} stale/missing Entries to the configured backend…`);
+  try{let endpoint=$('endpoint').value.trim()||'/api/editorial-scan',payload={schemaVersion:1,model:PRICING.model,items:todo.map(e=>{let i=entries.indexOf(e),prev=entries[i-1],next=entries[i+1];return{id:e.id,provenance:e.provenance,text:e.body,sourceDigest:e.digest,previous:prev?{id:prev.id,tail:prev.body.slice(-380)}:null,next:next?{id:next.id,head:next.body.slice(0,380)}:null}})};let r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});if(!r.ok)throw new Error(`HTTP ${r.status}`);let data=await r.json(),map=new Map((data.analyses||[]).map(x=>[x.id,x]));todo.forEach(e=>{let a=map.get(e.id);if(a)e.editorial={status:'ready',function:FUNCTIONS.includes(a.function)?a.function:'neutral',continuity:clamp(+a.continuity||0,0,1),dependency:['standalone','dependsOnPrevious','refersToNearby'].includes(a.dependency)?a.dependency:'standalone',topicShift:clamp(+a.topicShift||0,0,1),sourceDigest:e.digest,model:data.model||PRICING.model,schemaVersion:1,analyzedAt:new Date().toISOString()}});let u=data.usage||{},cached=u.input_tokens_details?.cached_tokens||u.cached_input_tokens||0,input=u.input_tokens||0,output=u.output_tokens||0,cost=priceCost(input,cached,output);lastUsage={inputTokens:input,cachedInputTokens:cached,outputTokens:output,cost,kind:'actual'};let totalEst=todo.reduce((s,e)=>s+estimateTokens(analysisInputFor(e,entries.indexOf(e))),0)||1;todo.forEach(e=>{let share=estimateTokens(analysisInputFor(e,entries.indexOf(e)))/totalEst;e.usage={inputTokens:Math.round(input*share),cachedInputTokens:Math.round(cached*share),outputTokens:Math.round(output*share),estimatedUSD:null,actualUSD:cost*share,kind:'actual'}});setStatus(`<strong>LIVE READY</strong> — ${todo.length} Entries analyzed. Actual usage recorded.`);generate()}catch(err){setStatus(`<strong>LIVE FAILED</strong> — ${String(err.message||err)}. Static raw.githack cannot host /api; deploy a same-origin backend and keep the API key there.`)}}
+function setStatus(html){$('analysisStatus').innerHTML=html}
+function editorialValue(e){return mode==='off'||!$('semantic').checked?null:(e.editorial?.status==='ready'?e.editorial:null)}
