@@ -24,7 +24,16 @@
     I.state.measureHost = host;
   }
 
+  function installRuntimeStyles() {
+    if (document.getElementById('typeblock-index-runtime-style')) return;
+    const style = document.createElement('style');
+    style.id = 'typeblock-index-runtime-style';
+    style.textContent = '.editorial-index-layout .cell-matrix .article-title{-webkit-line-clamp:2;}';
+    document.head.appendChild(style);
+  }
+
   installMeasureHost();
+  installRuntimeStyles();
 
   const baseRenderLayout = renderLayout;
   renderLayout = function finalizedEditorialIndexRender() {
