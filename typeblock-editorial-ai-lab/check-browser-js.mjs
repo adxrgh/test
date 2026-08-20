@@ -19,6 +19,7 @@ const files = [
   "editorial-projection.js",
   "projection-ui.js",
   "import-data.js",
+  "projection-runtime.js",
   "server.mjs",
   "api/editorial-scan.mjs",
   "api/editorial-projection.mjs"
