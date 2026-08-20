@@ -22,7 +22,8 @@ const files = [
   "projection-runtime.js",
   "server.mjs",
   "api/editorial-scan.mjs",
-  "api/editorial-projection.mjs"
+  "api/editorial-projection.mjs",
+  "api/editorial-projection-v2.mjs"
 ];
 
 let failed = false;
