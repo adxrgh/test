@@ -117,7 +117,11 @@ assert.ok(context.candidates.length >= 1, "at least one index candidate should b
 
 for (const candidate of context.candidates) {
   assert.equal(candidate.ps.length, context.entries.length, "every Entry must have exactly one placement");
-  assert.deepEqual(candidate.ps.map(placement => placement.entryIndex), [...context.entries.keys()], "placements must preserve source order");
+  assert.deepEqual(
+    Array.from(candidate.ps, placement => placement.entryIndex),
+    Array.from({ length: context.entries.length }, (_, index) => index),
+    "placements must preserve source order"
+  );
   assert.ok(candidate.bands.length >= 1, "candidate must contain editorial bands");
   assert.ok(candidate.bands.every(band => ["lead", "matrix", "feature"].includes(band.type)), "only legal band types may be used");
   assert.equal(candidate.bands[0].start, 0, "bands must start at the first Entry");
