@@ -21,6 +21,7 @@ const files = [
   "persistence.js",
   "editorial-projection.js",
   "projection-ui.js",
+  "editorial-index-finalize.js",
   "editorial-index-reader.js",
   "import-data.js",
   "projection-runtime.js",
