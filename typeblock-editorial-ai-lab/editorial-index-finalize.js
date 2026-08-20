@@ -4,6 +4,28 @@
   const I = window.TypeBlockEditorialIndex;
   if (!I || typeof renderLayout !== 'function') return;
 
+  function installMeasureHost() {
+    let host = document.getElementById('typeblock-index-measure-host');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'typeblock-index-measure-host';
+      Object.assign(host.style, {
+        position: 'absolute',
+        left: '-100000px',
+        top: '0',
+        width: '0',
+        height: '0',
+        visibility: 'hidden',
+        pointerEvents: 'none'
+      });
+      document.body.appendChild(host);
+    }
+    host.classList.add('editorial-index-layout');
+    I.state.measureHost = host;
+  }
+
+  installMeasureHost();
+
   const baseRenderLayout = renderLayout;
   renderLayout = function finalizedEditorialIndexRender() {
     baseRenderLayout();
