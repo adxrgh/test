@@ -4,7 +4,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { runEditorialScan } from "./api/editorial-scan.mjs";
-import { runEditorialProjection } from "./api/editorial-projection.mjs";
+import { runEditorialProjection } from "./api/editorial-projection-v2.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
@@ -61,10 +61,12 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         provider: "openrouter",
         model: process.env.OPENROUTER_MODEL || "openai/gpt-5-mini",
+        projectionModel: process.env.OPENROUTER_PROJECTION_MODEL || process.env.OPENROUTER_MODEL || "openai/gpt-5-mini",
         hasKey: Boolean(process.env.OPENROUTER_API_KEY),
         capabilities: {
           editorialScan: true,
-          editorialProjection: true
+          editorialProjection: true,
+          editorialProjectionV2: true
         }
       });
     }
@@ -124,6 +126,7 @@ server.listen(PORT, () => {
   console.log(`TypeBlock Editorial AI Lab: http://localhost:${PORT}`);
   console.log(`Editorial scan: http://localhost:${PORT}/api/editorial-scan`);
   console.log(`Editorial projection: http://localhost:${PORT}/api/editorial-projection`);
+  console.log(`Editorial projection backend: v2 · minimal reasoning · adaptive completion budget`);
   console.log(`OpenRouter model: ${process.env.OPENROUTER_MODEL || "openai/gpt-5-mini"}`);
   console.log(`OpenRouter key loaded: ${process.env.OPENROUTER_API_KEY ? "yes" : "NO — add OPENROUTER_API_KEY to .env"}`);
 });
