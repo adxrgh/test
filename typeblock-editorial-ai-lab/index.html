@@ -6,8 +6,9 @@
 <link rel="stylesheet" href="phrase-layout.css">
 <link rel="stylesheet" href="typography.css">
 <link rel="stylesheet" href="projection.css">
+<link rel="stylesheet" href="editorial-index.css">
 <div class="app" id="app">
-<header class="head"><h1>TypeBlock<br>Editorial AI Lab</h1><small>local data → editorial scan → title/deck projection → responsive phrase layout</small></header>
+<header class="head"><h1>TypeBlock<br>Editorial AI Lab</h1><small>local data → editorial scan → title/deck projection → rolling editorial index</small></header>
 <aside class="side">
   <section class="p"><h2>Dataset</h2>
     <div class="row"><input id="dataFile" type="file" accept=".json,application/json"><a href="data-template.json" download>JSON template</a></div>
@@ -17,7 +18,7 @@
     <div class="row"><button id="apply" type="button">Apply text</button><button id="reset" type="button">Reset sample</button></div>
     <p>Fudebam import reads only <code>entries[]</code>: <code>content</code>, <code>createdAt</code>, and <code>captureOrigin</code>. Records with <code>hiddenAt</code> or <code>mergedIntoEntryID</code> are excluded. Annotations, revisions, and AI review sessions remain sidecars rather than becoming Layout Entries. The newest 10 active Entries are selected, then placed oldest → newest.</p>
     <p>The selected 10-entry snapshot, Editorial Analysis, and Editorial Projection are stored locally in this browser. Reopening the same localhost page restores them without another API call when the Entry text and model are unchanged.</p>
-    <p>The layout groups consecutive Entries into 1–4 item Editorial Phrases. AI continuity and topic-shift signals are combined with a deterministic local text relation check; each phrase then selects a legal six-column composition while every Entry keeps its length-derived territory weight.</p>
+    <p>The active layout is a Rolling Editorial Index. Consecutive Entries form Lead, Matrix, or Feature bands; source order never changes, similar material shares aligned cells, and every Entry retains its length-derived body territory while title/deck rows are budgeted separately.</p>
   </section>
   <section class="p"><h2>Layout profile</h2>
     <div class="profile-switch">
@@ -25,7 +26,11 @@
       <button type="button" data-layout-profile="mobile" class="on" aria-pressed="true">MOBILE</button>
     </div>
     <div class="status" id="profileStatus"><strong>MOBILE 390×844</strong> — six logical columns, 16 pt margins, 8 pt gutters; long text is restricted to 5–6 columns.</div>
-    <p class="profile-spec">The two profiles reuse the same Entry order, Editorial Analysis, phrase grouping, and area ratios. Only legal templates, physical gutters, line-measure constraints, and rolling viewport scoring change.</p>
+    <p class="profile-spec">The two profiles reuse the same Entry order, Editorial Analysis, area ratios, titles, and decks. Physical gutters, text measure, and band geometry adapt to the active screen.</p>
+  </section>
+  <section class="p"><h2>Editorial index</h2>
+    <div class="status" id="indexStatus"><strong>ROLLING EDITORIAL INDEX</strong> — initializing Lead, Matrix, and Feature bands.</div>
+    <p class="profile-spec">The index is the stable overview state: title, deck, and an area-weighted source preview. Clicking a cell goes directly to the full Source Reader; there is no persistent expanded-card middle state.</p>
   </section>
   <section class="p"><h2>Typography</h2>
     <div class="status" id="typographyStatus"><strong>TYPE V1</strong> — initializing browser text measurement.</div>
@@ -47,11 +52,11 @@
   </section>
   <section class="p"><h2>Analysis cost ledger</h2><div class="kv" id="costLedger"></div></section>
   <section class="p"><h2>Editorial inspector</h2><div class="editorial-card" id="editorialInspector">Click a block.</div></section>
-  <section class="p"><h2>Rolling viewport</h2><div class="kv" id="rolling"></div></section>
+  <section class="p"><h2>Rolling index</h2><div class="kv" id="rolling"></div></section>
   <section class="p"><h2>Weights</h2><div class="weights" id="weights"></div></section>
-  <section class="p"><h2>Options</h2><div class="opts"><label><input id="clean" type="checkbox">clean</label><label><input id="grid" type="checkbox">grid</label><label><input id="bounds" type="checkbox">bounds</label><label><input id="worst" type="checkbox" checked>worst viewport</label><label><input id="semantic" type="checkbox" checked>editorial fit</label></div></section>
+  <section class="p"><h2>Options</h2><div class="opts"><label><input id="clean" type="checkbox">clean</label><label><input id="grid" type="checkbox">grid</label><label><input id="bounds" type="checkbox">bounds</label><label><input id="worst" type="checkbox" checked>viewport guides</label><label><input id="semantic" type="checkbox" checked>editorial fit</label></div></section>
 </aside>
-<main class="main"><div class="stage"><div class="stagehead"><b>TypeBlock / Layout</b><span id="stageMeta"></span></div><div id="layout"><div class="grid" id="gridlines"></div></div></div><div class="cands" id="cands"></div><div class="stats" id="stats"></div></main>
+<main class="main"><div class="stage"><div class="stagehead"><b>TypeBlock / Editorial Index</b><span id="stageMeta"></span></div><div id="layout"><div class="grid" id="gridlines"></div></div></div><div class="cands" id="cands"></div><div class="stats" id="stats"></div></main>
 </div>
 <script>window.TYPEBLOCK_DEFERRED_BOOT=true;</script>
 <script src="core.js"></script>
@@ -63,10 +68,14 @@
 <script src="typography-layout-adapter.js"></script>
 <script src="solver-phrase-templates.js"></script>
 <script src="solver-phrase-engine.js"></script>
+<script src="editorial-index-core.js"></script>
+<script src="editorial-index-layout.js"></script>
 <script src="ui.js"></script>
+<script src="editorial-index-ui.js"></script>
 <script src="typography-ui.js"></script>
 <script src="persistence.js"></script>
 <script src="editorial-projection.js"></script>
 <script src="projection-ui.js"></script>
+<script src="editorial-index-reader.js"></script>
 <script src="import-data.js"></script>
 <script src="projection-runtime.js"></script>
