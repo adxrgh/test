@@ -61,21 +61,33 @@ const server = http.createServer(async (req, res) => {
         ok: true,
         provider: "openrouter",
         model: process.env.OPENROUTER_MODEL || "openai/gpt-5-mini",
-        hasKey: Boolean(process.env.OPENROUTER_API_KEY)
+        hasKey: Boolean(process.env.OPENROUTER_API_KEY),
+        capabilities: {
+          editorialScan: true,
+          editorialProjection: true
+        }
       });
     }
 
     if (url.pathname === "/api/editorial-scan") {
       if (req.method !== "POST") return sendJson(res, 405, { error: "Method not allowed" });
       const payload = await readJson(req);
+      const count = Array.isArray(payload?.items) ? payload.items.length : 0;
+      const startedAt = Date.now();
+      console.log(`[editorial-scan] request start · ${count} Entries`);
       const result = await runEditorialScan(payload);
+      console.log(`[editorial-scan] request done · ${Date.now() - startedAt} ms · ${count} Entries`);
       return sendJson(res, 200, result);
     }
 
     if (url.pathname === "/api/editorial-projection") {
       if (req.method !== "POST") return sendJson(res, 405, { error: "Method not allowed" });
       const payload = await readJson(req);
+      const count = Array.isArray(payload?.items) ? payload.items.length : 0;
+      const startedAt = Date.now();
+      console.log(`[editorial-projection] request start · ${count} Entries`);
       const result = await runEditorialProjection(payload);
+      console.log(`[editorial-projection] request done · ${Date.now() - startedAt} ms · ${count} Entries`);
       return sendJson(res, 200, result);
     }
 
@@ -103,6 +115,7 @@ const server = http.createServer(async (req, res) => {
     res.end(body);
   } catch (error) {
     const status = Number(error.statusCode || 500);
+    console.error(`[server] ${req.method || "REQUEST"} ${req.url || "/"} · ${status} · ${error.message || error}`);
     sendJson(res, status, { error: error.message || "Unexpected server error" });
   }
 });
