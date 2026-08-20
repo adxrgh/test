@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node check-browser-js.mjs",
+    "check": "node check-browser-js.mjs && node check-editorial-index.mjs",
     "start": "node server.mjs",
     "dev": "node --watch server.mjs"
   },
