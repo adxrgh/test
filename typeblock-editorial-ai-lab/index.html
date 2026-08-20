@@ -14,15 +14,15 @@
     <div class="status" id="dataStatus"><strong>LOADING</strong> — restoring the active local dataset before the layout starts.</div>
     <div class="ladder" id="ladder"></div>
     <textarea id="src"></textarea>
-    <div class="row"><button id="apply">Apply text</button><button id="reset">Reset sample</button></div>
+    <div class="row"><button id="apply" type="button">Apply text</button><button id="reset" type="button">Reset sample</button></div>
     <p>Fudebam import reads only <code>entries[]</code>: <code>content</code>, <code>createdAt</code>, and <code>captureOrigin</code>. Records with <code>hiddenAt</code> or <code>mergedIntoEntryID</code> are excluded. Annotations, revisions, and AI review sessions remain sidecars rather than becoming Layout Entries. The newest 10 active Entries are selected, then placed oldest → newest.</p>
     <p>The selected 10-entry snapshot, Editorial Analysis, and Editorial Projection are stored locally in this browser. Reopening the same localhost page restores them without another API call when the Entry text and model are unchanged.</p>
     <p>The layout groups consecutive Entries into 1–4 item Editorial Phrases. AI continuity and topic-shift signals are combined with a deterministic local text relation check; each phrase then selects a legal six-column composition while every Entry keeps its length-derived territory weight.</p>
   </section>
   <section class="p"><h2>Layout profile</h2>
     <div class="profile-switch">
-      <button data-layout-profile="desktop" aria-pressed="false">DESKTOP</button>
-      <button data-layout-profile="mobile" class="on" aria-pressed="true">MOBILE</button>
+      <button type="button" data-layout-profile="desktop" aria-pressed="false">DESKTOP</button>
+      <button type="button" data-layout-profile="mobile" class="on" aria-pressed="true">MOBILE</button>
     </div>
     <div class="status" id="profileStatus"><strong>MOBILE 390×844</strong> — six logical columns, 16 pt margins, 8 pt gutters; long text is restricted to 5–6 columns.</div>
     <p class="profile-spec">The two profiles reuse the same Entry order, Editorial Analysis, phrase grouping, and area ratios. Only legal templates, physical gutters, line-measure constraints, and rolling viewport scoring change.</p>
@@ -32,15 +32,15 @@
     <p class="typography-spec">Sans body with explicit CJK fallback · 16/24 body · 20/24 dominant · 12/16 caption tokens · standard 400/500/600/700 weights · 4/8 px baseline lock. Text is measured in the active browser font rather than estimated from a fixed average glyph width.</p>
   </section>
   <section class="p"><h2>Editorial projection</h2>
-    <div class="row"><button id="analyzeProjection" class="primary">Generate stale / missing</button><button id="clearProjection">Clear generated</button></div>
+    <div class="row"><button id="analyzeProjection" type="button" class="primary">Generate stale / missing</button><button id="clearProjection" type="button">Clear generated</button></div>
     <input class="endpoint" id="projectionEndpoint" value="/api/editorial-projection" aria-label="Editorial projection endpoint">
     <div class="status" id="projectionStatus"><strong>PROJECTION V1</strong> — original titles are extracted locally; eligible missing titles and decks run only after you click Generate.</div>
     <div class="kv" id="projectionLedger"></div>
     <p>Collected Entries ≥600 characters receive title + deck; collected Entries 220–599 receive title only; short authored notes remain unprojected, while long authored Entries may receive a title without a deck. Generated text is a local display sidecar and never rewrites the source.</p>
   </section>
   <section class="p"><h2>Editorial analysis</h2>
-    <div class="mode"><button data-mode="off">OFF</button><button data-mode="live" class="on">LIVE</button></div>
-    <div class="row"><button id="analyze" class="primary">Analyze stale / missing</button><button id="clearAnalysis">Clear</button></div>
+    <div class="mode"><button type="button" data-mode="off">OFF</button><button type="button" data-mode="live" class="on">LIVE</button></div>
+    <div class="row"><button id="analyze" type="button" class="primary">Analyze stale / missing</button><button id="clearAnalysis" type="button">Clear</button></div>
     <input class="endpoint" id="endpoint" value="/api/editorial-scan" aria-label="Live endpoint">
     <div class="status" id="analysisStatus"><strong>LIVE</strong> — analysis runs only after you click Analyze. The API key stays in the local backend.</div>
     <div class="pricing">LIVE: OpenRouter-reported token usage and cost when available. Restored analyses incur no new cost.</div>
@@ -69,3 +69,4 @@
 <script src="editorial-projection.js"></script>
 <script src="projection-ui.js"></script>
 <script src="import-data.js"></script>
+<script src="projection-runtime.js"></script>
